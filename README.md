@@ -25,14 +25,19 @@ Referencias: McpServer → Engine → Core  |  Dashboard → Core (solo DTOs)
 
 ## Uso rápido
 
+**Zero-touch (default):** `.mcp.json` usa transporte stdio apuntando al exe
+compilado con `--stdio` — Claude Code enciende/apaga el servidor solo. En modo
+stdio el MCP habla por stdin/stdout (logs a stderr) y Kestrel levanta igualmente
+el WebSocket/REST para el Dashboard (fallback a puerto efímero si 5210 está en uso).
+
 ```bash
-dotnet run --project Jaravi.McpServer   # MCP en http://localhost:5210/mcp
+dotnet build Jaravi.McpServer           # refresca el exe que usa .mcp.json
+dotnet run --project Jaravi.McpServer   # modo HTTP compartido: /mcp en :5210
 dotnet run --project Jaravi.Dashboard   # GUI observadora (o el .exe compilado)
 dotnet test                             # suite completa
 ```
 
-Claude Code se conecta automáticamente vía `.mcp.json`. La skill
-`.claude/skills/jaravi-orchestrator` enseña al agente jefe su rol.
+La skill `.claude/skills/jaravi-orchestrator` enseña al agente jefe su rol.
 
 ## Tools MCP
 
@@ -58,9 +63,14 @@ Entrada declarativa en `Jaravi.McpServer/agents.json` — sin código:
   "args": ["run", "{task}"],          // placeholders: {task}, {workdir}
   "unattendedArgs": ["--yes"],        // inyectados si unattended=true
   "env": { "CI": "true" },
+  "closeStdin": true,                 // one-shot CLIs que leen stdin hasta EOF
   "io": "pipe"                        // "pty" reservado para ConPTY (post-MVP)
 }
 ```
+
+Lecciones con CLIs reales: usa `closeStdin: true` para CLIs one-shot
+(`opencode run`, `claude -p`) o se cuelgan esperando EOF; y apunta al binario
+real, no al shim `.cmd` de npm (cmd.exe destroza argumentos multilínea).
 
 ## Roadmap
 

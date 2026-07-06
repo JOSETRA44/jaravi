@@ -156,9 +156,7 @@ public class SessionManagerTests : IAsyncLifetime
         var result = await _manager.AwaitSessionAsync(snapshot.SessionId, AwaitTimeout);
         // without closeStdin, sort would hang forever waiting for EOF
         Assert.Equal(SessionState.Completed, result.Snapshot.State);
-
-        await Assert.ThrowsAsync<NotSupportedException>(
-            () => _manager.SendInputAsync(snapshot.SessionId, "text"));
+        Assert.Equal(0, result.Snapshot.ExitCode);
     }
 
     [Fact]

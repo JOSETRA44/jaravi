@@ -28,9 +28,13 @@ ventana de contexto.
 
 ## Prerrequisito
 
-El servidor debe estar corriendo: `dotnet run --project Jaravi.McpServer`
-(endpoint MCP en `http://localhost:5210/mcp`, ya registrado en `.mcp.json`).
-Si las tools no aparecen, pide al usuario arrancarlo.
+Ninguno: `.mcp.json` usa transporte **stdio** apuntando al ejecutable compilado
+con `--stdio`, así que Claude Code enciende y apaga el servidor solo (zero-touch).
+En modo stdio, Kestrel también levanta el WebSocket/REST para el Dashboard
+(fallback a puerto efímero si 5210 está ocupado). Si cambiaste el código del
+servidor, recompila (`dotnet build Jaravi.McpServer`) para que el exe esté fresco.
+El modo HTTP (`dotnet run --project Jaravi.McpServer`, endpoint
+`http://localhost:5210/mcp`) sigue disponible para un motor compartido de larga vida.
 
 ## Higiene de contexto (las reglas que te mantienen vivo)
 
@@ -94,6 +98,13 @@ spawn_agent(
 ## Agregar un nuevo tipo de sub-agente
 
 No se escribe código: agrega una entrada en `Jaravi.McpServer/agents.json`
-(command, args con `{task}`/`{workdir}`, `unattendedArgs`, `env`) y reinicia el
-servidor. Verifícalo con `list_agents` y una sesión de humo antes de delegarle
-trabajo real.
+(command, args con `{task}`/`{workdir}`, `unattendedArgs`, `env`) y recompila/
+reinicia el servidor. Verifícalo con `list_agents` y una sesión de humo antes
+de delegarle trabajo real. Dos lecciones aprendidas con CLIs reales:
+
+- **`closeStdin: true` para CLIs one-shot** (`opencode run`, `claude -p`…):
+  leen stdin hasta EOF cuando está en pipe y se cuelgan para siempre si queda
+  abierto. Con este flag el motor les entrega el EOF al arrancar
+  (`send_input` queda deshabilitado para esa sesión).
+- **Apunta al binario real, no al shim `.cmd` de npm**: los shims pasan por
+  `cmd.exe`, que destroza argumentos multilínea como los briefs renderizados.
