@@ -1,0 +1,54 @@
+{
+  // Declarative agent registry — adding a new external agent CLI is an entry
+  // here, never a code change. Placeholders: {task}, {workdir}.
+  "agents": [
+    {
+      "id": "echo-demo",
+      "description": "Dependency-free demo agent: echoes the task, streams a few lines and exits 0.",
+      "command": "cmd.exe",
+      "args": ["/c", "echo [echo-demo] task: {task} & echo working in {workdir} & ping -n 3 127.0.0.1 > NUL & echo done"],
+      "io": "pipe",
+      "idleTimeoutSeconds": 30
+    },
+    {
+      "id": "flood-demo",
+      "description": "Stress demo: emits 50000 lines to prove the boss agent's context can never be flooded.",
+      "command": "cmd.exe",
+      "args": ["/c", "for /L %i in (1,1,50000) do @echo flood line %i"],
+      "io": "pipe"
+    },
+    {
+      "id": "claude",
+      "description": "Claude Code as a headless sub-agent (non-interactive print mode).",
+      "command": "claude.cmd",
+      "args": ["-p", "{task}"],
+      "unattendedArgs": ["--dangerously-skip-permissions"],
+      "env": { "CI": "true" },
+      "envAllowlist": ["ANTHROPIC_MODEL"],
+      "io": "pipe",
+      "idleTimeoutSeconds": 300
+    },
+    {
+      "id": "copilot",
+      "description": "GitHub Copilot CLI as a sub-agent (adjust flags to your installed version).",
+      "command": "copilot.cmd",
+      "args": ["-p", "{task}"],
+      "unattendedArgs": ["--allow-all-tools"],
+      "env": { "CI": "true" },
+      "envAllowlist": [],
+      "io": "pipe",
+      "idleTimeoutSeconds": 300
+    },
+    {
+      "id": "opencode",
+      "description": "OpenCode CLI as a sub-agent (adjust command/flags to your installation).",
+      "command": "opencode.cmd",
+      "args": ["run", "{task}"],
+      "unattendedArgs": [],
+      "env": { "CI": "true" },
+      "envAllowlist": [],
+      "io": "pipe",
+      "idleTimeoutSeconds": 300
+    }
+  ]
+}

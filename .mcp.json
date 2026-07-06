@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jaravi": {
+      "type": "http",
+      "url": "http://localhost:5210/mcp"
+    }
+  }
+}

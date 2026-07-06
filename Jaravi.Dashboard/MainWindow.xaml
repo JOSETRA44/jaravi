@@ -1,0 +1,151 @@
+<Window x:Class="Jaravi.Dashboard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:conv="clr-namespace:Jaravi.Dashboard.Converters"
+        xmlns:vm="clr-namespace:Jaravi.Dashboard.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="Jaravi — Orquestador de Sub-Agentes"
+        Height="720" Width="1180"
+        Background="#1E1E2E">
+
+    <Window.Resources>
+        <conv:StateToBrushConverter x:Key="StateBrush" />
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CDD6F4" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#313244" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="BorderBrush" Value="#45475A" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#45475A" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="BorderBrush" Value="#585B70" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- toolbar -->
+        <Border Grid.Row="0" Background="#181825" Padding="10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" Margin="12,0,6,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#E53935" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="#4CAF50" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding ConnectionText}" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox Width="140" Margin="0,0,8,0"
+                              ItemsSource="{Binding Profiles}"
+                              SelectedItem="{Binding SelectedProfile}"
+                              DisplayMemberPath="Id" />
+                    <TextBox Width="330" Margin="0,0,8,0"
+                             Text="{Binding TaskText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Tarea para el sub-agente" />
+                    <TextBox Width="260" Margin="0,0,8,0"
+                             Text="{Binding Workdir, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Workdir (dentro de las raíces permitidas)" />
+                    <Button Content="Spawn" Command="{Binding SpawnCommand}" Margin="0,0,8,0" />
+                    <Button Content="Kill" Command="{Binding KillCommand}" Margin="0,0,8,0" />
+                    <Button Content="Refrescar" Command="{Binding RefreshCommand}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- main split -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- sessions -->
+            <ListBox Grid.Column="0"
+                     Background="#1E1E2E" BorderThickness="0,0,1,0" BorderBrush="#313244"
+                     ItemsSource="{Binding Sessions}"
+                     SelectedItem="{Binding SelectedSession}"
+                     HorizontalContentAlignment="Stretch"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:SessionViewModel}">
+                        <Border Padding="8,6">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="10" Height="10" Margin="0,0,8,0"
+                                         VerticalAlignment="Center"
+                                         Fill="{Binding State, Converter={StaticResource StateBrush}}" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Header}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding State}" FontSize="11" Foreground="#7F849C" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- log console -->
+            <ListBox Grid.Column="1" x:Name="LogList"
+                     Background="#11111B" BorderThickness="0"
+                     ItemsSource="{Binding SelectedSession.LogLines}"
+                     FontFamily="Cascadia Mono, Consolas"
+                     FontSize="12"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:LogLineVm}">
+                        <TextBlock Text="{Binding Text}" TextWrapping="NoWrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#A6E3A1" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Stream}" Value="stderr">
+                                            <Setter Property="Foreground" Value="#F38BA8" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Stream}" Value="system">
+                                            <Setter Property="Foreground" Value="#89B4FA" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- status bar -->
+        <Border Grid.Row="2" Background="#181825" Padding="10,5">
+            <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#7F849C" />
+        </Border>
+    </Grid>
+</Window>
