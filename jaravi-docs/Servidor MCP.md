@@ -30,6 +30,19 @@ Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
 > [!warning] read_output tiene un hard cap de 500 líneas
 > El parámetro `maxLines` está limitado por `Engine:MaxReadLines` (500). El agente jefe nunca puede inundar su contexto.
 
+## Orquestación avanzada en `spawn_agent` (v2)
+
+- **Pipelines**: `inputFromSessionId` + `inputKind` (`summary`|`tail`|`errors`) —
+  el [[Motor (Engine)|motor]] inyecta el resultado de una sesión **terminada**
+  en el task de la nueva. Parámetros extra: `inputTailLines` (cap 100), `inputGrep`.
+- **Claims**: `claims: ["src/Auth/**"]` reclama rutas en exclusiva;
+  `onConflict: "reject"` (default) falla con la sesión en conflicto,
+  `onConflict: "queue"` deja la sesión en estado `Queued` y el motor la arranca
+  solo cuando el claim se libera. La respuesta incluye `queuedBehind`.
+
+> [!note] La sesión origen de un pipeline debe estar terminada
+> Su output es inmutable en estado terminal — eso hace la inyección determinista.
+
 ## Endpoints
 
 | Ruta | Propósito |

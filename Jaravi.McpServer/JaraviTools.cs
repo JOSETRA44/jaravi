@@ -20,7 +20,9 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
 
     [McpServerTool(Name = "spawn_agent"), Description(
         "Launch an external sub-agent session. Returns the sessionId immediately; use await_session to wait for it. " +
-        "Prefer the structured 'brief' over free-text 'task' for deterministic prompts.")]
+        "Prefer the structured 'brief' over free-text 'task' for deterministic prompts. " +
+        "Chain agents with inputFromSessionId (the engine injects the previous terminal session's result into the task). " +
+        "Declare 'claims' when parallel sessions may write the same paths; onConflict=queue parks the session until the claim frees.")]
     public async Task<object> SpawnAgent(
         [Description("Agent profile id (see list_agents)")] string profile,
         [Description("Working directory for the sub-agent; must be inside an allowed root")] string workdir,
@@ -30,10 +32,33 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         [Description("Hard deadline in seconds; the process tree is killed when exceeded. Default 1800")] int timeoutSec = 1800,
         [Description("Extra environment variables (filtered by the profile's allowlist)")] Dictionary<string, string>? env = null,
         [Description("Labels for grouping in the dashboard")] string[]? labels = null,
+        [Description("Pipeline: id of a FINISHED session whose result seeds this task")] string? inputFromSessionId = null,
+        [Description("What to inject from the source session: summary (default), tail, or errors")] string? inputKind = null,
+        [Description("Lines for inputKind=tail (hard cap 100). Default 40")] int inputTailLines = 40,
+        [Description("Optional regex filter for inputKind=tail")] string? inputGrep = null,
+        [Description("Path globs this session claims exclusively (relative to workdir), e.g. [\"src/Auth/**\"]")] string[]? claims = null,
+        [Description("On claim conflict or full slots: reject (default, fails with conflict info) or queue (parks until free)")] string? onConflict = null,
         CancellationToken ct = default)
     {
         if (brief is null && string.IsNullOrWhiteSpace(task))
             throw new McpException("Provide either 'task' or 'brief'.");
+
+        PipelineInput? inputFrom = null;
+        if (inputFromSessionId is not null)
+        {
+            if (!TryParseEnum(inputKind, PipelineInputKind.Summary, out PipelineInputKind kind))
+                throw new McpException($"Unknown inputKind '{inputKind}'. Use summary, tail or errors.");
+            inputFrom = new PipelineInput
+            {
+                SessionId = inputFromSessionId,
+                Kind = kind,
+                TailLines = inputTailLines,
+                Grep = inputGrep,
+            };
+        }
+
+        if (!TryParseEnum(onConflict, ConflictPolicy.Reject, out ConflictPolicy conflictPolicy))
+            throw new McpException($"Unknown onConflict '{onConflict}'. Use reject or queue.");
 
         var snapshot = await Guard(() => sessions.SpawnAsync(new SpawnRequest
         {
@@ -45,9 +70,24 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
             TimeoutSec = timeoutSec,
             Env = env ?? new Dictionary<string, string>(),
             Labels = labels ?? [],
+            InputFrom = inputFrom,
+            Claims = claims ?? [],
+            OnConflict = conflictPolicy,
         }, ct));
 
-        return new { snapshot.SessionId, state = snapshot.State.ToString(), snapshot.Pid };
+        return new
+        {
+            snapshot.SessionId,
+            state = snapshot.State.ToString(),
+            snapshot.Pid,
+            queuedBehind = snapshot.QueuedBehindSessionId,
+        };
+    }
+
+    private static bool TryParseEnum<T>(string? value, T fallback, out T result) where T : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value)) { result = fallback; return true; }
+        return Enum.TryParse(value, ignoreCase: true, out result);
     }
 
     [McpServerTool(Name = "send_input"), Description(

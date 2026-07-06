@@ -26,6 +26,17 @@ public sealed record SpawnRequest
 
     public IReadOnlyList<string> Labels { get; init; } = [];
 
+    /// <summary>Seed this session with the result of a previous terminal session (pipeline).</summary>
+    public PipelineInput? InputFrom { get; init; }
+
+    /// <summary>
+    /// Path globs this session claims exclusively (relative to workdir or absolute).
+    /// Overlapping active claims block the spawn per <see cref="OnConflict"/>.
+    /// </summary>
+    public IReadOnlyList<string> Claims { get; init; } = [];
+
+    public ConflictPolicy OnConflict { get; init; } = ConflictPolicy.Reject;
+
     /// <summary>Final task text: rendered brief when present, otherwise the free-text task.</summary>
     public string ResolveTaskText() => Brief?.RenderPrompt() ?? Task ?? "";
 }

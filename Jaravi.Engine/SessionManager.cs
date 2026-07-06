@@ -9,9 +9,10 @@ using Microsoft.Extensions.Logging;
 namespace Jaravi.Engine;
 
 /// <summary>
-/// Orchestrates sub-agent sessions: spawn, supervise, input, await, kill.
-/// All output is absorbed into the log store and telemetry bus — the caller
-/// only ever receives bounded, deterministic payloads.
+/// Orchestrates sub-agent sessions: spawn, supervise, input, await, kill,
+/// plus session pipelines (seed a spawn with a finished session's result) and
+/// exclusive path claims (queue or reject on conflict). All output is absorbed
+/// into the log store and telemetry bus — callers only receive bounded payloads.
 /// </summary>
 public sealed class SessionManager(
     IAgentRegistry registry,
@@ -22,56 +23,69 @@ public sealed class SessionManager(
     ILogger<SessionManager> logger) : ISessionManager, IAsyncDisposable
 {
     private const int LogBatchSize = 100;
+    private const int PipelineTailCap = 100;
     private const string ErrorGrep = @"\b(error|exception|failed|fatal|denied|traceback)\b";
 
     private readonly ScopeGate _scopeGate = new(options);
+    private readonly ClaimRegistry _claims = new();
     private readonly ConcurrentDictionary<string, Session> _sessions = new();
+
+    /// <summary>Serializes admission decisions (claims + concurrency slots + queue).</summary>
+    private readonly object _admissionGate = new();
+    private readonly List<Session> _queue = [];
 
     public async Task<SessionSnapshot> SpawnAsync(SpawnRequest request, CancellationToken ct = default)
     {
         var profile = registry.Get(request.ProfileId);
         var workdir = _scopeGate.ValidateWorkdir(request.Workdir);
+        var pipelineContext = request.InputFrom is null ? null : BuildPipelineContext(request.InputFrom);
 
-        var active = _sessions.Values.Count(s => !s.SnapshotState().IsTerminal());
-        if (active >= options.MaxConcurrentSessions)
-            throw new JaraviException(
-                $"Concurrency limit reached ({options.MaxConcurrentSessions} active sessions). Await or kill one first.");
-
-        var session = new Session(Guid.NewGuid().ToString("N")[..8], request, profile, workdir);
+        var session = new Session(Guid.NewGuid().ToString("N")[..8], request, profile, workdir)
+        {
+            PipelineContext = pipelineContext,
+        };
         _sessions[session.Id] = session;
 
-        var spec = BuildStartSpec(request, profile, workdir);
-        Transition(session, SessionState.Starting, null);
-
-        var output = Channel.CreateUnbounded<RawOutputLine>(
-            new UnboundedChannelOptions { SingleReader = true });
-
-        try
+        bool startNow;
+        lock (_admissionGate)
         {
-            session.Process = await processFactory.StartAsync(spec, output.Writer, ct);
+            var conflict = _claims.TryAcquire(session.Id, workdir, request.Claims);
+            var slotFree = CountRunning() < options.MaxConcurrentSessions;
+
+            if (conflict is null && slotFree)
+            {
+                startNow = true;
+            }
+            else if (request.OnConflict == ConflictPolicy.Queue)
+            {
+                if (conflict is null) _claims.Release(session.Id); // claims are only held while running
+                session.QueuedBehind = conflict?.HolderSessionId;
+                _queue.Add(session);
+                startNow = false;
+            }
+            else
+            {
+                _claims.Release(session.Id);
+                _sessions.TryRemove(session.Id, out _);
+                if (conflict is not null)
+                    throw new ClaimConflictException(conflict.Path, conflict.HolderSessionId);
+                throw new JaraviException(
+                    $"Concurrency limit reached ({options.MaxConcurrentSessions} active sessions). Await or kill one first.");
+            }
         }
-        catch (Exception ex)
+
+        if (startNow)
         {
-            AppendSystemLog(session, $"spawn failed: {ex.Message}");
-            Transition(session, SessionState.Failed, "spawn failed");
-            PublishExited(session);
-            throw new JaraviException($"Failed to start '{profile.Command}': {ex.Message}");
+            await StartSessionAsync(session, ct);
+        }
+        else
+        {
+            Transition(session, SessionState.Queued,
+                session.QueuedBehind is null ? "no free slot" : $"claims held by {session.QueuedBehind}");
+            AppendSystemLog(session,
+                $"queued{(session.QueuedBehind is null ? " (concurrency)" : $" behind session {session.QueuedBehind}")}");
         }
 
-        session.StartedAt = DateTimeOffset.UtcNow;
-        Transition(session, SessionState.Running, null);
-        AppendSystemLog(session, $"spawned pid {session.Process.Pid}: {spec.Command} ({profile.Id})");
-
-        eventBus.Publish(new SessionStarted
-        {
-            SessionId = session.Id,
-            ProfileId = profile.Id,
-            Workdir = workdir,
-            Pid = session.Process.Pid,
-            Labels = request.Labels,
-        });
-
-        session.RunTask = SuperviseAsync(session, output.Reader);
         return BuildSnapshot(session);
     }
 
@@ -147,11 +161,23 @@ public sealed class SessionManager(
     public Task<SessionSnapshot> KillAsync(string sessionId, string? reason = null, CancellationToken ct = default)
     {
         var session = GetSession(sessionId);
-        if (!session.SnapshotState().IsTerminal())
+        var stateBefore = session.SnapshotState();
+        if (!stateBefore.IsTerminal())
         {
             AppendSystemLog(session, $"kill requested{(reason is null ? "" : $": {reason}")}");
             Transition(session, SessionState.Killed, reason ?? "killed by caller");
-            session.Process?.KillTree();
+
+            if (stateBefore is SessionState.Queued or SessionState.Created)
+            {
+                // Never started: no supervisor will publish the exit — do it here.
+                session.ExitedAt = DateTimeOffset.UtcNow;
+                PublishExited(session);
+                FinalizeSession(session);
+            }
+            else
+            {
+                session.Process?.KillTree();
+            }
         }
         return Task.FromResult(BuildSnapshot(session));
     }
@@ -164,7 +190,51 @@ public sealed class SessionManager(
             try { await task.WaitAsync(TimeSpan.FromSeconds(5)); } catch { /* best effort */ }
     }
 
-    // ---- internals -------------------------------------------------------
+    // ---- lifecycle internals ---------------------------------------------
+
+    private async Task StartSessionAsync(Session session, CancellationToken ct)
+    {
+        if (session.SnapshotState().IsTerminal())
+        {
+            // Killed while parked between dequeue and start.
+            FinalizeSession(session);
+            return;
+        }
+
+        var spec = BuildStartSpec(session);
+        Transition(session, SessionState.Starting, null);
+
+        var output = Channel.CreateUnbounded<RawOutputLine>(
+            new UnboundedChannelOptions { SingleReader = true });
+
+        try
+        {
+            session.Process = await processFactory.StartAsync(spec, output.Writer, ct);
+        }
+        catch (Exception ex)
+        {
+            AppendSystemLog(session, $"spawn failed: {ex.Message}");
+            Transition(session, SessionState.Failed, "spawn failed");
+            PublishExited(session);
+            FinalizeSession(session);
+            throw new JaraviException($"Failed to start '{session.Profile.Command}': {ex.Message}");
+        }
+
+        session.StartedAt = DateTimeOffset.UtcNow;
+        Transition(session, SessionState.Running, null);
+        AppendSystemLog(session, $"spawned pid {session.Process.Pid}: {spec.Command} ({session.Profile.Id})");
+
+        eventBus.Publish(new SessionStarted
+        {
+            SessionId = session.Id,
+            ProfileId = session.Profile.Id,
+            Workdir = session.Workdir,
+            Pid = session.Process.Pid,
+            Labels = session.Request.Labels,
+        });
+
+        session.RunTask = SuperviseAsync(session, output.Reader);
+    }
 
     private async Task SuperviseAsync(Session session, ChannelReader<RawOutputLine> reader)
     {
@@ -198,8 +268,61 @@ public sealed class SessionManager(
             watchdogCts.Cancel();
             try { await watchdog; } catch (OperationCanceledException) { }
             PublishExited(session);
+            FinalizeSession(session);
         }
     }
+
+    /// <summary>Terminal cleanup: free the session's claims and wake eligible queued sessions.</summary>
+    private void FinalizeSession(Session session)
+    {
+        _claims.Release(session.Id);
+        TryStartQueuedSessions();
+    }
+
+    private void TryStartQueuedSessions()
+    {
+        List<Session> toStart = [];
+        lock (_admissionGate)
+        {
+            for (var i = 0; i < _queue.Count;)
+            {
+                if (CountRunning() + toStart.Count >= options.MaxConcurrentSessions) break;
+
+                var candidate = _queue[i];
+                if (candidate.SnapshotState() != SessionState.Queued)
+                {
+                    _queue.RemoveAt(i); // killed while parked
+                    continue;
+                }
+
+                var conflict = _claims.TryAcquire(candidate.Id, candidate.Workdir, candidate.Request.Claims);
+                if (conflict is null)
+                {
+                    _queue.RemoveAt(i);
+                    toStart.Add(candidate); // claims already held from here on
+                }
+                else
+                {
+                    candidate.QueuedBehind = conflict.HolderSessionId;
+                    i++;
+                }
+            }
+        }
+
+        foreach (var session in toStart)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await StartSessionAsync(session, CancellationToken.None); }
+                catch (JaraviException) { /* session already marked Failed and exit published */ }
+            });
+        }
+    }
+
+    /// <summary>Sessions occupying a concurrency slot (parked sessions do not).</summary>
+    private int CountRunning() =>
+        _sessions.Values.Count(s => s.SnapshotState()
+            is SessionState.Starting or SessionState.Running or SessionState.WaitingInput);
 
     private async Task PumpOutputAsync(Session session, ChannelReader<RawOutputLine> reader)
     {
@@ -250,14 +373,62 @@ public sealed class SessionManager(
         }
     }
 
-    private ProcessStartSpec BuildStartSpec(SpawnRequest request, AgentProfile profile, string workdir)
+    // ---- pipelines ---------------------------------------------------------
+
+    private string BuildPipelineContext(PipelineInput input)
     {
+        var source = GetSession(input.SessionId);
+        var snapshot = BuildSnapshot(source);
+        if (!snapshot.State.IsTerminal())
+            throw new PipelineSourceNotTerminalException(input.SessionId);
+
+        var body = input.Kind switch
+        {
+            PipelineInputKind.Summary => RenderSummaryBlock(GetSummary(input.SessionId)),
+            PipelineInputKind.Tail => JoinLines(logStore.Read(input.SessionId, new LogQuery
+            {
+                Tail = Math.Clamp(input.TailLines, 1, PipelineTailCap),
+                Grep = input.Grep,
+                MaxLines = PipelineTailCap,
+            })),
+            PipelineInputKind.Errors => JoinLines(logStore.Read(input.SessionId, new LogQuery
+            {
+                Grep = ErrorGrep,
+                Tail = 20,
+                MaxLines = 20,
+            })),
+            _ => "",
+        };
+
+        return $"\n\n## Resultado de la sesión previa {snapshot.SessionId} " +
+               $"({snapshot.ProfileId}, {snapshot.State}, exit {snapshot.ExitCode?.ToString() ?? "n/a"})\n{body}";
+    }
+
+    private static string JoinLines(IReadOnlyList<LogEntry> entries) =>
+        string.Join('\n', entries.Select(e => e.Text));
+
+    private static string RenderSummaryBlock(SessionSummary summary) =>
+        $"Duración: {summary.DurationSeconds}s · Líneas de log: {summary.TotalLogLines}\n" +
+        (summary.ErrorLines.Count > 0
+            ? "Errores detectados:\n" + string.Join('\n', summary.ErrorLines.Select(l => "- " + l)) + "\n"
+            : "") +
+        "Últimas líneas:\n" + string.Join('\n', summary.TailLines);
+
+    // ---- plumbing ----------------------------------------------------------
+
+    private ProcessStartSpec BuildStartSpec(Session session)
+    {
+        var request = session.Request;
+        var profile = session.Profile;
+
         var taskText = request.ResolveTaskText();
+        if (session.PipelineContext is not null)
+            taskText += session.PipelineContext;
         if (profile.PromptTemplate is not null)
             taskText = profile.PromptTemplate.Replace("{task}", taskText);
 
         var args = profile.Args
-            .Select(a => a.Replace("{task}", taskText).Replace("{workdir}", workdir))
+            .Select(a => a.Replace("{task}", taskText).Replace("{workdir}", session.Workdir))
             .ToList();
         if (request.Unattended)
             args.AddRange(profile.UnattendedArgs);
@@ -273,7 +444,7 @@ public sealed class SessionManager(
         {
             Command = profile.Command,
             Args = args,
-            Workdir = workdir,
+            Workdir = session.Workdir,
             Env = env,
             Io = profile.Io,
             CloseStdin = profile.CloseStdin,
@@ -345,6 +516,8 @@ public sealed class SessionManager(
                 LastOutputAt = session.LastOutputAt,
                 LogLineCount = logStore.GetLineCount(session.Id),
                 Labels = session.Request.Labels,
+                Claims = session.Request.Claims,
+                QueuedBehindSessionId = session.State == SessionState.Queued ? session.QueuedBehind : null,
             };
         }
     }
@@ -370,6 +543,12 @@ public sealed class SessionManager(
         public DateTimeOffset? ExitedAt { get; set; }
         public DateTimeOffset? LastOutputAt { get; set; }
         public int? ExitCode { get; set; }
+
+        /// <summary>Rendered result block of the pipeline source session, appended to the task.</summary>
+        public string? PipelineContext { get; init; }
+
+        /// <summary>While Queued by a claim conflict: the holder session.</summary>
+        public string? QueuedBehind { get; set; }
 
         public SessionState SnapshotState() { lock (Gate) return State; }
     }

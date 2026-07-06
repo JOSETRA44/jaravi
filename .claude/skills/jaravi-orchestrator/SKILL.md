@@ -36,6 +36,50 @@ servidor, recompila (`dotnet build Jaravi.McpServer`) para que el exe esté fres
 El modo HTTP (`dotnet run --project Jaravi.McpServer`, endpoint
 `http://localhost:5210/mcp`) sigue disponible para un motor compartido de larga vida.
 
+## Doctrina: hacer vs delegar (tú manejas el presupuesto de contexto)
+
+Es la misma decisión que toma Claude Code con sus propios subagentes: delegar
+cuesta un arranque frío + redactar un brief; hacerlo tú cuesta contexto de tu
+ventana. Decide así:
+
+- **Hazlo tú mismo** cuando la tarea es corta y dirigida (una edición puntual,
+  una lectura, una decisión de diseño), cuando requiere el contexto completo de
+  tu conversación, o cuando redactar el brief costaría más que el trabajo.
+- **Delega** (`spawn_agent`) cuando la tarea generaría output masivo en tu
+  terminal (builds, suites de tests, escaneos, auditorías), cuando es
+  paralelizable en trozos independientes, o cuando es autocontenida: si un
+  brief basta para que un agente frío la haga, no la hagas tú.
+- **Regla de oro del arranque frío**: el sub-agente NO vio tu conversación.
+  El brief debe ser autosuficiente — rutas absolutas, comandos exactos,
+  criterios de éxito. Si tu brief necesita "como te dije antes", está mal.
+
+## Pipelines: encadena agentes sin tocar el intermedio
+
+Cuando el paso N necesita el resultado del paso N−1, NO copies tú el output
+(eso quema tu contexto): usa `spawn_agent(inputFromSessionId: <id>)` y el motor
+inyecta el resultado de la sesión terminal previa directamente en el task del
+nuevo agente.
+
+- `inputKind`: `summary` (digest, default), `tail` (+`inputTailLines`, cap 100,
+  +`inputGrep` opcional) o `errors` (solo líneas de error extraídas).
+- La sesión origen debe estar **terminada** (su output ya es inmutable); si no,
+  el spawn falla con error claro — haz `await_session` primero.
+- Patrones: auditor → corrector (`errors`), generador → validador (`tail`),
+  investigador → implementador (`summary`).
+
+## Claims: paraleliza sin colisiones de archivos
+
+Antes de lanzar dos sesiones que puedan **escribir** en la misma zona, declara
+`claims` (globs relativos al workdir, p. ej. `["src/Auth/**"]`). El motor
+detecta solapamiento por raíz de ruta y aplica tu política:
+
+- `onConflict: "queue"` → la sesión queda `Queued` y arranca sola cuando el
+  claim se libera (serialización automática; `await_session` la espera igual).
+- `onConflict: "reject"` (default) → el spawn falla indicando qué sesión tiene
+  el claim, y tú replanificas.
+- Sin claims = sin restricción: solo protege lo que declares. Sesiones de solo
+  lectura no necesitan claims.
+
 ## Higiene de contexto (las reglas que te mantienen vivo)
 
 1. **Resumen antes que logs**: tras terminar una sesión, lee `get_summary`

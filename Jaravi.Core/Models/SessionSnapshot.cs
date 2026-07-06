@@ -15,6 +15,10 @@ public sealed record SessionSnapshot
     public DateTimeOffset? LastOutputAt { get; init; }
     public long LogLineCount { get; init; }
     public IReadOnlyList<string> Labels { get; init; } = [];
+    public IReadOnlyList<string> Claims { get; init; } = [];
+
+    /// <summary>When Queued by a claim conflict: the session currently holding the claim.</summary>
+    public string? QueuedBehindSessionId { get; init; }
 }
 
 /// <summary>Compact digest a boss agent reads instead of raw logs.</summary>

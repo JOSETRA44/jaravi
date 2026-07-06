@@ -45,6 +45,18 @@ La skill `.claude/skills/jaravi-orchestrator` enseña al agente jefe su rol.
 `read_output` (capado a 500 líneas server-side), `await_session`,
 `get_summary`, `kill_agent`.
 
+## Orquestación avanzada (v2)
+
+- **Pipelines**: `spawn_agent(inputFromSessionId, inputKind: summary|tail|errors)`
+  — el motor inyecta el resultado de una sesión terminada en el task de la
+  nueva; los agentes se encadenan sin pasar por el contexto del jefe.
+- **Claims**: `spawn_agent(claims: ["src/Auth/**"], onConflict: reject|queue)`
+  — rutas reclamadas en exclusiva; solapamiento → rechazo estructurado o cola
+  FIFO (estado `Queued`) que arranca sola al liberarse el claim.
+- **Doctrina hacer-vs-delegar** para el agente jefe en
+  `.claude/skills/jaravi-orchestrator` (inspirada en cómo Claude Code gestiona
+  sus propios subagentes).
+
 ## Garantías anti-colapso de contexto
 
 - **Ring buffer** por sesión (10 000 líneas) + tope duro de lectura (500).
