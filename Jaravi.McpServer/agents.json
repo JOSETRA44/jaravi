@@ -41,12 +41,12 @@
     },
     {
       "id": "opencode",
-      "description": "OpenCode CLI as a sub-agent (adjust command/flags to your installation).",
-      "command": "opencode.cmd",
+      "description": "OpenCode CLI as a sub-agent (direct binary — npm .cmd shims mangle multi-line args).",
+      "command": "C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe",
       "args": ["run", "{task}"],
       "unattendedArgs": [],
       "env": { "CI": "true" },
-      "envAllowlist": [],
+      "envAllowlist": ["OPENCODE_MODEL"],
       "io": "pipe",
       "idleTimeoutSeconds": 300
     }

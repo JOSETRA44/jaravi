@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "jaravi": {
-      "type": "http",
-      "url": "http://localhost:5210/mcp"
+      "type": "stdio",
+      "command": "C:\\Users\\USER\\source\\APPS-C++\\consola\\jaravi\\Jaravi.McpServer\\bin\\Debug\\net8.0\\Jaravi.McpServer.exe",
+      "args": ["--stdio"]
     }
   }
 }
