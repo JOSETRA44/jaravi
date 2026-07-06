@@ -10,6 +10,7 @@ namespace Jaravi.Dashboard;
 /// </summary>
 public partial class App : Application
 {
+    private JaraviApiClient? _api;
     private EventStreamClient? _events;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -20,10 +21,10 @@ public partial class App : Application
         var httpUri = new Uri(baseUrl);
         var wsUri = new UriBuilder(httpUri) { Scheme = httpUri.Scheme == "https" ? "wss" : "ws", Path = "/ws/events" }.Uri;
 
-        var api = new JaraviApiClient(httpUri);
+        _api = new JaraviApiClient(httpUri);
         _events = new EventStreamClient(wsUri);
 
-        var mainViewModel = new MainViewModel(api, _events, defaultWorkdir: @"C:\Users\USER\source");
+        var mainViewModel = new MainViewModel(_api, _events, defaultWorkdir: @"C:\Users\USER\source");
 
         var window = new MainWindow { DataContext = mainViewModel };
         window.Show();
@@ -31,7 +32,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _events?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+        Task.Run(() => _events?.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(2));
+        _api?.Dispose();
         base.OnExit(e);
     }
 }

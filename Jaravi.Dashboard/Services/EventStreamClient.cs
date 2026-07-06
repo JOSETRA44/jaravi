@@ -22,6 +22,7 @@ public sealed class EventStreamClient(Uri wsUri) : IAsyncDisposable
 
     public event Action<JaraviEvent>? EventReceived;
     public event Action<bool>? ConnectionChanged;
+    public event Action<string>? Diagnostic;
 
     public void Start() => _runLoop = RunAsync(_cts.Token);
 
@@ -40,7 +41,7 @@ public sealed class EventStreamClient(Uri wsUri) : IAsyncDisposable
                 await ReceiveLoopAsync(socket, ct);
             }
             catch (OperationCanceledException) { return; }
-            catch (Exception) { /* connect/receive failure → retry */ }
+            catch (Exception ex) { Diagnostic?.Invoke($"WebSocket error: {ex.Message}"); }
 
             ConnectionChanged?.Invoke(false);
             try { await Task.Delay(backoff, ct); } catch (OperationCanceledException) { return; }
@@ -67,7 +68,7 @@ public sealed class EventStreamClient(Uri wsUri) : IAsyncDisposable
             var json = Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
             JaraviEvent? evt = null;
             try { evt = JsonSerializer.Deserialize<JaraviEvent>(json, JaraviJson.Options); }
-            catch (JsonException) { /* unknown event type from a newer server — ignore */ }
+            catch (JsonException ex) { Diagnostic?.Invoke($"JSON error: {ex.Message}"); }
 
             if (evt is not null)
                 EventReceived?.Invoke(evt);

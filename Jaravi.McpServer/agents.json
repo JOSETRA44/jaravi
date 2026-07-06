@@ -42,6 +42,18 @@
       "idleTimeoutSeconds": 300
     },
     {
+      "id": "antigravity",
+      "description": "Antigravity CLI (agy) as a sub-agent in non-interactive print mode.",
+      "command": "C:\\Users\\USER\\AppData\\Local\\agy\\bin\\agy.exe",
+      "args": ["--print", "{task}", "--print-timeout", "15m"],
+      "unattendedArgs": ["--dangerously-skip-permissions"],
+      "env": { "CI": "true" },
+      "envAllowlist": [],
+      "closeStdin": true,
+      "io": "pipe",
+      "idleTimeoutSeconds": 600
+    },
+    {
       "id": "opencode",
       "description": "OpenCode CLI as a sub-agent (direct binary — npm .cmd shims mangle multi-line args).",
       "command": "C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe",

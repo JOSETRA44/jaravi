@@ -239,8 +239,10 @@ public sealed class SessionManager(
                 return;
             }
 
+            // A session whose stdin was closed at launch can never be waiting
+            // for input — silence just means the agent is thinking.
             var lastActivity = session.LastOutputAt ?? session.StartedAt ?? session.CreatedAt;
-            if (state == SessionState.Running &&
+            if (state == SessionState.Running && !session.Profile.CloseStdin &&
                 (DateTimeOffset.UtcNow - lastActivity).TotalSeconds > session.Profile.IdleTimeoutSeconds)
             {
                 Transition(session, SessionState.WaitingInput, "no output — possibly blocked on input");

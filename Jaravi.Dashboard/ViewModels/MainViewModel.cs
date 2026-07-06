@@ -49,6 +49,7 @@ public sealed partial class MainViewModel : ObservableObject
             IsConnected = connected;
             if (connected) _ = RefreshAsync();
         });
+        _events.Diagnostic += msg => OnUi(() => StatusText = msg);
         _events.Start();
     }
 

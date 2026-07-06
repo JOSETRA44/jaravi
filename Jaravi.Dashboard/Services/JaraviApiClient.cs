@@ -9,9 +9,11 @@ namespace Jaravi.Dashboard.Services;
 /// REST client for the Jaravi server. The Dashboard is a pure observer/remote —
 /// it never references the engine, only the HTTP surface.
 /// </summary>
-public sealed class JaraviApiClient(Uri baseUri)
+public sealed class JaraviApiClient(Uri baseUri) : IDisposable
 {
     private readonly HttpClient _http = new() { BaseAddress = baseUri, Timeout = TimeSpan.FromSeconds(15) };
+
+    public void Dispose() => _http.Dispose();
 
     public Task<List<SessionSnapshot>?> GetSessionsAsync(CancellationToken ct = default) =>
         _http.GetFromJsonAsync<List<SessionSnapshot>>("/api/sessions", JaraviJson.Options, ct);
