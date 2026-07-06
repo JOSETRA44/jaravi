@@ -41,4 +41,28 @@ Valida que el `workdir` esté dentro de `AllowedRoots`. Previene que un prompt m
 >   "MaxReadLines": 500, "LogBufferCapacity": 10000 } }
 > ```
 
+
+## ClaimRegistry y cola de sesiones (v2)
+
+`ClaimRegistry` implementa los bloqueos de rutas: cada claim (glob) se
+normaliza a su raíz sin comodines y dos claims chocan si una raíz es prefijo
+de la otra (detección conservadora). Los claims se sostienen mientras la
+sesión corre y se liberan al llegar a estado terminal.
+
+- Conflicto + `reject` → `ClaimConflictException` con la sesión poseedora.
+- Conflicto (o sin slot libre) + `queue` → estado `Queued`; al terminar
+  cualquier sesión, el `SessionManager` recorre la cola FIFO y arranca las que
+  ya no chocan.
+
+## Pipelines de sesiones (v2)
+
+`SpawnRequest.InputFrom` referencia una sesión **terminal**: el motor renderiza
+su resultado (`summary`, `tail` acotado a 100 o `errors`) como bloque
+determinista y lo concatena al task antes del `PromptTemplate` del perfil.
+Así un auditor alimenta a un corrector sin que el jefe copie nada.
+
+> [!tip] El estado Queued no es terminal
+> `await_session` espera también a las sesiones encoladas: encolar y esperar
+> es la forma de serializar escrituras sin lógica extra en el jefe.
+
 Véase también: [[Servidor MCP]], [[Perfiles de Agentes]]
