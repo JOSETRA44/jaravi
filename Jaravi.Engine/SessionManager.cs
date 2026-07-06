@@ -274,6 +274,7 @@ public sealed class SessionManager(
             Workdir = workdir,
             Env = env,
             Io = profile.Io,
+            CloseStdin = profile.CloseStdin,
         };
     }
 

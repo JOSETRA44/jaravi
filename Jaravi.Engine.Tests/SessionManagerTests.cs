@@ -50,6 +50,8 @@ public class SessionManagerTests : IAsyncLifetime
         new() { Id = "fail", Command = "cmd.exe", Args = ["/c", "exit 3"] },
         new() { Id = "sleep", Command = "cmd.exe", Args = ["/c", "ping -n 60 127.0.0.1 > NUL"] },
         new() { Id = "flood", Command = "cmd.exe", Args = ["/c", "for /L %i in (1,1,500) do @echo line %i"] },
+        // sort reads stdin until EOF — mirrors one-shot AI CLIs (opencode run, claude -p)
+        new() { Id = "stdin-reader", Command = "cmd.exe", Args = ["/c", "sort"], CloseStdin = true },
     ];
 
     private SpawnRequest Request(string profile, string task = "hello", int timeoutSec = 60) =>
@@ -145,6 +147,18 @@ public class SessionManagerTests : IAsyncLifetime
 
         Assert.Contains("SessionStarted", seen);
         Assert.Contains("LogBatchEmitted", seen);
+    }
+
+    [Fact]
+    public async Task CloseStdin_unblocks_one_shot_clis_that_read_stdin_until_eof()
+    {
+        var snapshot = await _manager.SpawnAsync(Request("stdin-reader"));
+        var result = await _manager.AwaitSessionAsync(snapshot.SessionId, AwaitTimeout);
+        // without closeStdin, sort would hang forever waiting for EOF
+        Assert.Equal(SessionState.Completed, result.Snapshot.State);
+
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => _manager.SendInputAsync(snapshot.SessionId, "text"));
     }
 
     [Fact]

@@ -48,6 +48,13 @@ public sealed record AgentProfile
 
     public IoMode Io { get; init; } = IoMode.Pipe;
 
+    /// <summary>
+    /// Close the child's stdin immediately after launch. Required for one-shot
+    /// CLIs (opencode run, claude -p…) that read piped stdin until EOF and
+    /// block forever if the pipe stays open. Disables send_input for the session.
+    /// </summary>
+    public bool CloseStdin { get; init; }
+
     /// <summary>Seconds without output while Running before the session is marked WaitingInput.</summary>
     public int IdleTimeoutSeconds { get; init; } = 60;
 }

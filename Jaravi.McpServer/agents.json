@@ -25,6 +25,7 @@
       "unattendedArgs": ["--dangerously-skip-permissions"],
       "env": { "CI": "true" },
       "envAllowlist": ["ANTHROPIC_MODEL"],
+      "closeStdin": true,
       "io": "pipe",
       "idleTimeoutSeconds": 300
     },
@@ -36,6 +37,7 @@
       "unattendedArgs": ["--allow-all-tools"],
       "env": { "CI": "true" },
       "envAllowlist": [],
+      "closeStdin": true,
       "io": "pipe",
       "idleTimeoutSeconds": 300
     },
@@ -47,6 +49,7 @@
       "unattendedArgs": [],
       "env": { "CI": "true" },
       "envAllowlist": ["OPENCODE_MODEL"],
+      "closeStdin": true,
       "io": "pipe",
       "idleTimeoutSeconds": 300
     }

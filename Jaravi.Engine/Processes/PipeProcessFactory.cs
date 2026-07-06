@@ -44,18 +44,25 @@ public sealed class PipeProcessFactory : IAgentProcessFactory
         var process = new Process { StartInfo = psi };
         process.Start();
 
-        var agentProcess = new PipeAgentProcess(process, output);
+        var agentProcess = new PipeAgentProcess(process, output, spec.CloseStdin);
         return Task.FromResult<IAgentProcess>(agentProcess);
     }
 
     private sealed class PipeAgentProcess : IAgentProcess
     {
         private readonly Process _process;
+        private readonly bool _stdinClosed;
 
-        public PipeAgentProcess(Process process, ChannelWriter<RawOutputLine> output)
+        public PipeAgentProcess(Process process, ChannelWriter<RawOutputLine> output, bool closeStdin)
         {
             _process = process;
             Pid = process.Id;
+
+            // One-shot CLIs read piped stdin until EOF — hand them the EOF now
+            // or they block forever before producing a single byte.
+            if (closeStdin)
+                process.StandardInput.Close();
+            _stdinClosed = closeStdin;
 
             var stdout = PumpAsync(process.StandardOutput, LogStream.Stdout, output);
             var stderr = PumpAsync(process.StandardError, LogStream.Stderr, output);
@@ -68,6 +75,9 @@ public sealed class PipeProcessFactory : IAgentProcessFactory
 
         public async ValueTask WriteInputAsync(string text, CancellationToken ct = default)
         {
+            if (_stdinClosed)
+                throw new NotSupportedException(
+                    "This profile closes stdin at launch (closeStdin: true) — the session cannot receive input.");
             await _process.StandardInput.WriteLineAsync(text.AsMemory(), ct);
             await _process.StandardInput.FlushAsync(ct);
         }

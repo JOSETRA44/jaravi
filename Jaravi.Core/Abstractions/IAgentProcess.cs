@@ -14,6 +14,9 @@ public sealed record ProcessStartSpec
     public required string Workdir { get; init; }
     public IReadOnlyDictionary<string, string> Env { get; init; } = new Dictionary<string, string>();
     public IoMode Io { get; init; } = IoMode.Pipe;
+
+    /// <summary>Close the child's stdin right after launch (one-shot CLIs that read piped stdin until EOF).</summary>
+    public bool CloseStdin { get; init; }
 }
 
 /// <summary>Handle to a live child process, independent of the I/O strategy behind it.</summary>
