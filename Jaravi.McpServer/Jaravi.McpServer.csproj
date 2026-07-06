@@ -4,6 +4,22 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Runs on newer runtimes when 8.x is absent — zero-friction installs. -->
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <!-- dotnet tool global: `dotnet tool install -g Jaravi.McpServer` → comando `jaravi-mcp` -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>jaravi-mcp</ToolCommandName>
+    <PackageId>Jaravi.McpServer</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>Jaravi</Authors>
+    <Description>Jaravi MCP server: deterministic orchestration of external CLI sub-agents (OpenCode, Claude Code, Copilot…) with context-collapse protection. MCP over stdio or HTTP + WebSocket telemetry for the Jaravi Dashboard.</Description>
+    <PackageTags>mcp;agents;orchestration;cli</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,8 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Read-only default shipped inside the tool package; seeded to the
+         user's %APPDATA%\jaravi\ on first run (the editable copy). -->
     <None Update="agents.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

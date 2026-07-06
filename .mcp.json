@@ -2,7 +2,7 @@
   "mcpServers": {
     "jaravi": {
       "type": "stdio",
-      "command": "C:\\Users\\USER\\source\\APPS-C++\\consola\\jaravi\\Jaravi.McpServer\\bin\\Debug\\net8.0\\Jaravi.McpServer.exe",
+      "command": "jaravi-mcp",
       "args": ["--stdio"]
     }
   }

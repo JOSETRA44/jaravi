@@ -23,15 +23,35 @@ Referencias: McpServer → Engine → Core  |  Dashboard → Core (solo DTOs)
 | `Jaravi.Dashboard` | GUI WPF (MVVM) observadora; solo consume HTTP/WS. |
 | `Jaravi.Engine.Tests` | xUnit: 35 tests incluyendo E2E contra procesos reales. |
 
-## Uso rápido
-
-**Zero-touch (default):** `.mcp.json` usa transporte stdio apuntando al exe
-compilado con `--stdio` — Claude Code enciende/apaga el servidor solo. En modo
-stdio el MCP habla por stdin/stdout (logs a stderr) y Kestrel levanta igualmente
-el WebSocket/REST para el Dashboard (fallback a puerto efímero si 5210 está en uso).
+## Instalación (dotnet tool global — recomendada)
 
 ```bash
-dotnet build Jaravi.McpServer           # refresca el exe que usa .mcp.json
+dotnet pack Jaravi.McpServer -c Release -o nupkg      # (o descarga el .nupkg)
+dotnet tool install -g Jaravi.McpServer --add-source ./nupkg
+```
+
+Esto instala el comando **`jaravi-mcp`**. Registro en cualquier proyecto — un
+`.mcp.json` inmaculado, sin rutas absolutas:
+
+```json
+{ "mcpServers": { "jaravi": { "type": "stdio", "command": "jaravi-mcp", "args": ["--stdio"] } } }
+```
+
+**Configuración de usuario**: el primer arranque siembra `%APPDATA%\jaravi\`
+con `agents.json` (perfiles de sub-agentes, editable) y `appsettings.json`
+(overrides: `Engine:AllowedRoots`, etc.). Resolución de `agents.json`:
+`JARAVI_AGENTS` (env) → `./agents.json` del proyecto → `%APPDATA%\jaravi\` →
+defaults del paquete. Actualizar tras cambios: `dotnet tool update -g
+Jaravi.McpServer --add-source ./nupkg`.
+
+## Uso rápido (desarrollo)
+
+**Zero-touch:** `.mcp.json` usa stdio — Claude Code enciende/apaga el servidor
+solo. En stdio el MCP habla por stdin/stdout (logs a stderr) y Kestrel levanta
+igualmente el WebSocket/REST para el Dashboard (fallback a puerto efímero si
+5210 está en uso).
+
+```bash
 dotnet run --project Jaravi.McpServer   # modo HTTP compartido: /mcp en :5210
 dotnet run --project Jaravi.Dashboard   # GUI observadora (o el .exe compilado)
 dotnet test                             # suite completa

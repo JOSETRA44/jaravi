@@ -28,11 +28,13 @@ ventana de contexto.
 
 ## Prerrequisito
 
-Ninguno: `.mcp.json` usa transporte **stdio** apuntando al ejecutable compilado
-con `--stdio`, así que Claude Code enciende y apaga el servidor solo (zero-touch).
+Ninguno: `.mcp.json` usa transporte **stdio** con el comando global `jaravi-mcp`
+(dotnet tool), así que Claude Code enciende y apaga el servidor solo (zero-touch).
 En modo stdio, Kestrel también levanta el WebSocket/REST para el Dashboard
-(fallback a puerto efímero si 5210 está ocupado). Si cambiaste el código del
-servidor, recompila (`dotnet build Jaravi.McpServer`) para que el exe esté fresco.
+(fallback a puerto efímero si 5210 está ocupado). Config editable del usuario en
+`%APPDATA%\jaravi\` (`agents.json`, `appsettings.json`). Si cambiaste el código
+del servidor: `dotnet pack Jaravi.McpServer -c Release -o nupkg` y
+`dotnet tool update -g Jaravi.McpServer --add-source ./nupkg`.
 El modo HTTP (`dotnet run --project Jaravi.McpServer`, endpoint
 `http://localhost:5210/mcp`) sigue disponible para un motor compartido de larga vida.
 
