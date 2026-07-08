@@ -14,7 +14,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>jaravi-mcp</ToolCommandName>
     <PackageId>Jaravi.McpServer</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Jaravi</Authors>
     <Description>Jaravi MCP server: deterministic orchestration of external CLI sub-agents (OpenCode, Claude Code, Copilot…) with context-collapse protection. MCP over stdio or HTTP + WebSocket telemetry for the Jaravi Dashboard.</Description>
     <PackageTags>mcp;agents;orchestration;cli</PackageTags>

@@ -61,9 +61,20 @@ La skill `.claude/skills/jaravi-orchestrator` enseña al agente jefe su rol.
 
 ## Tools MCP
 
-`list_agents`, `spawn_agent`, `send_input`, `get_status`, `list_sessions`,
-`read_output` (capado a 500 líneas server-side), `await_session`,
-`get_summary`, `kill_agent`.
+`list_agents`, `spawn_agent`, `run_agent`, `send_input`, `get_status`,
+`list_sessions`, `read_output` (capado a 500 líneas server-side),
+`await_session`, `get_summary`, `kill_agent`.
+
+**`run_agent`** = spawn + await + summary en una sola llamada (la vía
+token-eficiente para delegar-y-recoger una tarea acotada). Para trabajo largo o
+en paralelo usa `spawn_agent` (retorna al instante) + `await_session`.
+
+## Puerto y despliegue
+
+Resolución del puerto HTTP/telemetría: `JARAVI_URL` (env) → `ASPNETCORE_URLS` →
+`Urls` (config) → `http://localhost:5210`. Si el puerto está ocupado, el
+servidor cae a un puerto efímero y lo registra en el log (`Telemetry/REST
+listening on …`) en vez de crashear — permite instancias concurrentes.
 
 ## Orquestación avanzada (v2)
 

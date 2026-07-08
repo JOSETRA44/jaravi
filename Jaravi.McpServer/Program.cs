@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Jaravi.Core;
 using Jaravi.Core.Abstractions;
 using Jaravi.Core.Models;
@@ -25,13 +27,21 @@ if (useStdio)
     // stdout belongs to the JSON-RPC protocol now — all logs go to stderr.
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
-
-    // Another instance (or an HTTP-mode server) may already own the port:
-    // fall back to an ephemeral one instead of dying — stdio MCP must survive.
-    var configuredUrl = builder.Configuration["Urls"] ?? "http://localhost:5210";
-    if (IsPortInUse(new Uri(configuredUrl).Port))
-        builder.WebHost.UseUrls("http://127.0.0.1:0");
 }
+
+// Port resolution, single source of truth (env wins so a second instance / test
+// can pick a free port): JARAVI_URL > ASPNETCORE_URLS > config "Urls" > default.
+// If the chosen port is busy we fall back to an ephemeral one and log it, rather
+// than crashing — a stdio instance keeps its MCP channel alive; an HTTP instance
+// still serves, and the actual URL is printed for clients to discover.
+var desiredUrl =
+    Environment.GetEnvironmentVariable("JARAVI_URL")
+    ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+    ?? builder.Configuration["Urls"]
+    ?? "http://localhost:5210";
+var firstUrl = desiredUrl.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)[0];
+var boundUrl = IsPortInUse(new Uri(firstUrl).Port) ? "http://127.0.0.1:0" : firstUrl;
+builder.WebHost.UseUrls(boundUrl);
 
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
@@ -74,6 +84,15 @@ var app = builder.Build();
 
 app.Logger.LogInformation("Agent registry: {AgentsFile} | Allowed roots: {Roots}",
     agentsFile, string.Join("; ", engineOptions.AllowedRoots));
+
+// Report the address actually bound (ephemeral fallback resolves the real port here).
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var addresses = app.Services.GetRequiredService<IServer>()
+        .Features.Get<IServerAddressesFeature>()?.Addresses;
+    if (addresses is { Count: > 0 })
+        app.Logger.LogInformation("Telemetry/REST listening on {Urls}", string.Join("; ", addresses));
+});
 
 app.UseWebSockets();
 

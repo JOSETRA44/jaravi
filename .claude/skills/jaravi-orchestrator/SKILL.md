@@ -38,6 +38,25 @@ del servidor: `dotnet pack Jaravi.McpServer -c Release -o nupkg` y
 El modo HTTP (`dotnet run --project Jaravi.McpServer`, endpoint
 `http://localhost:5210/mcp`) sigue disponible para un motor compartido de larga vida.
 
+## Usa las tools nativas — nunca escribas un cliente MCP
+
+Las tools de Jaravi están registradas vía `.mcp.json` (comando global
+`jaravi-mcp`), así que las invocas **directamente** como `spawn_agent`,
+`await_session`, `run_agent`… igual que cualquier tool nativa. **Jamás**
+escribas un script de PowerShell/curl que haga el handshake JSON-RPC a mano:
+eso reintroduce exactamente el gasto de tokens y de contexto que Jaravi existe
+para eliminar. Si las tools no aparecen, el servidor no está registrado —
+pídelo, no lo reemplaces con un script.
+
+## Regla de eficiencia: `run_agent` para delegar-y-recoger
+
+Para el patrón dominante —lanzar una tarea acotada y usar su resultado— usa
+**`run_agent`**: hace spawn + await + summary en **una sola llamada** y te
+devuelve estado, exit code, duración, líneas de error y cola. Reemplaza tres
+round-trips por uno. Reserva `spawn_agent` (retorna al instante) + `await_session`
+para trabajo largo o en paralelo, donde quieres lanzar varias sesiones y luego
+sincronizarlas.
+
 ## Doctrina: hacer vs delegar (tú manejas el presupuesto de contexto)
 
 Es la misma decisión que toma Claude Code con sus propios subagentes: delegar

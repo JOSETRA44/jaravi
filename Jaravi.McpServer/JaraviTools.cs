@@ -40,6 +40,68 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         [Description("On claim conflict or full slots: reject (default, fails with conflict info) or queue (parks until free)")] string? onConflict = null,
         CancellationToken ct = default)
     {
+        var request = BuildRequest(profile, workdir, task, brief, unattended, timeoutSec, env, labels,
+            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
+        var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
+
+        return new
+        {
+            snapshot.SessionId,
+            state = snapshot.State.ToString(),
+            snapshot.Pid,
+            queuedBehind = snapshot.QueuedBehindSessionId,
+        };
+    }
+
+    [McpServerTool(Name = "run_agent"), Description(
+        "Fire-and-collect: spawn a sub-agent, wait for it to finish (or hit maxWaitSec), and return its summary in ONE call. " +
+        "The token-efficient path for delegating a bounded task and using the result — replaces spawn_agent + await_session + get_summary. " +
+        "For long-running or parallel work, prefer spawn_agent (returns immediately) + await_session.")]
+    public async Task<object> RunAgent(
+        [Description("Agent profile id (see list_agents)")] string profile,
+        [Description("Working directory for the sub-agent; must be inside an allowed root")] string workdir,
+        [Description("Free-text task. Ignored when brief is provided")] string? task = null,
+        [Description("Structured task: objective, context, constraints, deliverables, forbidden")] TaskBrief? brief = null,
+        [Description("Max seconds to block waiting for completion. Default 600")] int maxWaitSec = 600,
+        [Description("Run fully unattended (injects the profile's non-interactive flags). Default true")] bool unattended = true,
+        [Description("Hard deadline in seconds; the process tree is killed when exceeded. Default 1800")] int timeoutSec = 1800,
+        [Description("Extra environment variables (filtered by the profile's allowlist)")] Dictionary<string, string>? env = null,
+        [Description("Labels for grouping in the dashboard")] string[]? labels = null,
+        [Description("Pipeline: id of a FINISHED session whose result seeds this task")] string? inputFromSessionId = null,
+        [Description("What to inject from the source session: summary (default), tail, or errors")] string? inputKind = null,
+        [Description("Lines for inputKind=tail (hard cap 100). Default 40")] int inputTailLines = 40,
+        [Description("Optional regex filter for inputKind=tail")] string? inputGrep = null,
+        [Description("Path globs this session claims exclusively (relative to workdir)")] string[]? claims = null,
+        [Description("On claim conflict or full slots: reject (default) or queue")] string? onConflict = null,
+        CancellationToken ct = default)
+    {
+        var request = BuildRequest(profile, workdir, task, brief, unattended, timeoutSec, env, labels,
+            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
+
+        var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
+        var awaited = await Guard(() => sessions.AwaitSessionAsync(snapshot.SessionId, TimeSpan.FromSeconds(maxWaitSec), ct));
+        var summary = sessions.GetSummary(snapshot.SessionId);
+
+        return new
+        {
+            summary.SessionId,
+            summary.ProfileId,
+            state = summary.State.ToString(),
+            summary.ExitCode,
+            summary.DurationSeconds,
+            summary.TotalLogLines,
+            timedOut = awaited.TimedOut,
+            waiting = awaited.Snapshot.State == Jaravi.Core.Models.SessionState.WaitingInput,
+            summary.ErrorLines,
+            summary.TailLines,
+        };
+    }
+
+    private static SpawnRequest BuildRequest(
+        string profile, string workdir, string? task, TaskBrief? brief, bool unattended, int timeoutSec,
+        Dictionary<string, string>? env, string[]? labels, string? inputFromSessionId, string? inputKind,
+        int inputTailLines, string? inputGrep, string[]? claims, string? onConflict)
+    {
         if (brief is null && string.IsNullOrWhiteSpace(task))
             throw new McpException("Provide either 'task' or 'brief'.");
 
@@ -60,7 +122,7 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         if (!TryParseEnum(onConflict, ConflictPolicy.Reject, out ConflictPolicy conflictPolicy))
             throw new McpException($"Unknown onConflict '{onConflict}'. Use reject or queue.");
 
-        var snapshot = await Guard(() => sessions.SpawnAsync(new SpawnRequest
+        return new SpawnRequest
         {
             ProfileId = profile,
             Task = task,
@@ -73,14 +135,6 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
             InputFrom = inputFrom,
             Claims = claims ?? [],
             OnConflict = conflictPolicy,
-        }, ct));
-
-        return new
-        {
-            snapshot.SessionId,
-            state = snapshot.State.ToString(),
-            snapshot.Pid,
-            queuedBehind = snapshot.QueuedBehindSessionId,
         };
     }
 
