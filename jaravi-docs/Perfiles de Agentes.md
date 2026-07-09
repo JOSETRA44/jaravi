@@ -53,6 +53,7 @@ Los CLIs one-shot como `opencode run`, `claude -p` y `copilot -p` leen de stdin 
 - **claude** — Claude Code headless con `-p`
 - **copilot** — GitHub Copilot CLI
 - **antigravity** — Antigravity CLI (agy)
-- **opencode** — OpenCode CLI
+- **opencode** — OpenCode CLI (líder open-source, 180k+ estrellas)
+- **codex** — Codex CLI de OpenAI, invocado vía `node` directo (el shim `.cmd` también pasa por `cmd.exe`); #1 en Terminal-Bench 2.1 (83.4%) según [[Investigacion de Mercado]]
 
 Véase también: [[Motor (Engine)|Motor]], [[Servidor MCP]], [[Operacion]]

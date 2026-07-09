@@ -13,12 +13,13 @@ tags: [jaravi, mcp, servidor, kestrel, tools, websocket]
 
 Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
 
-## Las 9 Tools MCP
+## Las 10 Tools MCP
 
 | Tool | Descripción |
 |---|---|
 | `list_agents` | Lista los perfiles de subagentes disponibles |
 | `spawn_agent` | Lanza un subagente; devuelve `sessionId` inmediatamente |
+| `run_agent` | **v0.3**: spawn + await + summary en una sola llamada — la vía token-eficiente para delegar-y-recoger |
 | `send_input` | Envía texto a stdin y/o teclas simbólicas (PTY) |
 | `get_status` | Estado compacto: estado, uptime, exit code, últimas 5 líneas |
 | `list_sessions` | Todas las sesiones con su estado actual |

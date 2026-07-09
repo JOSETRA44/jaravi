@@ -54,6 +54,18 @@
       "idleTimeoutSeconds": 600
     },
     {
+      "id": "codex",
+      "description": "OpenAI Codex CLI as a sub-agent, non-interactive exec mode (#1 on Terminal-Bench 2.1 as of jul-2026). Invoked via node directly — the .cmd shim wraps cmd.exe and mangles multi-line briefs.",
+      "command": "node",
+      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex.js", "exec", "{task}", "--skip-git-repo-check"],
+      "unattendedArgs": ["--full-auto"],
+      "env": {},
+      "envAllowlist": [],
+      "closeStdin": true,
+      "io": "pipe",
+      "idleTimeoutSeconds": 300
+    },
+    {
       "id": "opencode",
       "description": "OpenCode CLI as a sub-agent (direct binary — npm .cmd shims mangle multi-line args).",
       "command": "C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe",
