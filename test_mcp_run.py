@@ -40,7 +40,13 @@ send_request("initialize", {
     "clientInfo": {"name": "test-client", "version": "1.0.0"}
 }, id=1)
 time.sleep(1)
-send_request("notifications/initialized")
+msg = json.dumps({
+    "jsonrpc": "2.0",
+    "method": "notifications/initialized"
+})
+print(f"-> {msg}")
+proc.stdin.write(msg + "\n")
+proc.stdin.flush()
 time.sleep(1)
 
 send_request("tools/call", {
@@ -52,5 +58,5 @@ send_request("tools/call", {
     }
 }, id=2)
 
-time.sleep(15)
+time.sleep(30)
 proc.kill()
