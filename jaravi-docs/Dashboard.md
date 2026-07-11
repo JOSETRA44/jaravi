@@ -6,6 +6,9 @@ tags: [jaravi, dashboard, wpf, mvvm, observabilidad]
 
 `Jaravi.Dashboard` es una GUI WPF con patrón MVVM que observa el ecosistema Jaravi en tiempo real. Nunca referencia al [[Motor (Engine)|Engine]] directamente; se comunica exclusivamente vía HTTP REST y WebSocket con el [[Servidor MCP]].
 
+> [!note] Cliente secundario desde v0.4.0
+> La interfaz por defecto es ahora el [[Control Center (Web)]] servido por Kestrel (multiplataforma, sin instalar nada). Este WPF queda como cliente de escritorio opcional; ambos consumen el mismo `/ws/events` + `/api`.
+
 ## Arquitectura
 
 - `MainViewModel` — estado global: lista de sesiones, perfiles disponibles, conexión.

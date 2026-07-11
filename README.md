@@ -21,7 +21,7 @@ Referencias: McpServer → Engine → Core  |  Dashboard → Core (solo DTOs)
 | `Jaravi.Engine` | Motor: procesos (pipe I/O), SessionManager, event bus, ring buffer de logs, Scope Gate, sanitizador ANSI. |
 | `Jaravi.McpServer` | Host headless: tools MCP + WebSocket de telemetría + REST. |
 | `Jaravi.Dashboard` | GUI WPF (MVVM) observadora; solo consume HTTP/WS. |
-| `Jaravi.Engine.Tests` | xUnit: 35 tests incluyendo E2E contra procesos reales. |
+| `Jaravi.Engine.Tests` | xUnit: 54 tests incluyendo E2E contra procesos reales. |
 
 ## Instalación (dotnet tool global — recomendada)
 
@@ -59,22 +59,119 @@ dotnet test                             # suite completa
 
 La skill `.claude/skills/jaravi-orchestrator` enseña al agente jefe su rol.
 
+## ¿Quién puede ser el jefe?
+
+Jaravi es agnóstico del cliente MCP. Ya está registrado como servidor para:
+
+| CLI | Config |
+|---|---|
+| Claude Code | `.mcp.json` del repo (stdio) |
+| OpenCode | `opencode.jsonc` del repo — verificado con `opencode mcp list` |
+| Codex | `codex mcp add jaravi -- jaravi-mcp --stdio` (global, `~/.codex/config.toml`) |
+| Antigravity | `~/.antigravity/config/mcp_config.json`, entrada `"jaravi"` |
+
+### Instalar la skill del orquestador en tu CLI
+
+**Opción A — vía `npx skills` (una vez publicado el repo):**
+
+```bash
+npx skills add JOSETRA44/jaravi@jaravi-orchestrator -g -y
+```
+
+Esto la instala en el store universal `~/.agents/skills/` y la enlaza
+automáticamente a las carpetas de skills de Claude Code, OpenCode, Codex y
+demás CLIs compatibles con esa convención.
+
+**Opción B — configurarla tú mismo (sin depender de un push):**
+
+```bash
+mkdir -p ~/.agents/skills/jaravi-orchestrator
+cp .claude/skills/jaravi-orchestrator/SKILL.md ~/.agents/skills/jaravi-orchestrator/
+ln -s ~/.agents/skills/jaravi-orchestrator ~/.config/opencode/skills/jaravi-orchestrator
+ln -s ~/.agents/skills/jaravi-orchestrator ~/.codex/skills/jaravi-orchestrator
+```
+
+En Windows sin privilegios de symlink, `ln -s` cae automáticamente a una
+junction NTFS — funciona igual, sin necesidad de modo administrador.
+
 ## Tools MCP
 
-`list_agents`, `spawn_agent`, `run_agent`, `send_input`, `get_status`,
-`list_sessions`, `read_output` (capado a 500 líneas server-side),
+`list_agents`, `reload_agents`, `spawn_agent`, `run_agent`, `send_input`,
+`get_status`, `list_sessions`, `read_output` (capado a 500 líneas server-side),
 `await_session`, `get_summary`, `kill_agent`.
 
 **`run_agent`** = spawn + await + summary en una sola llamada (la vía
 token-eficiente para delegar-y-recoger una tarea acotada). Para trabajo largo o
 en paralelo usa `spawn_agent` (retorna al instante) + `await_session`.
 
+**`reload_agents`** = re-lee `agents.json` en vivo — agrega o edita perfiles de
+CLI sin reiniciar el servidor. Es lo que hace a Jaravi aplicable a *cualquier*
+CLI, no a una lista fija.
+
+## Agentes soportados (v0.3.2)
+
+11 perfiles verificados de fábrica: `claude`, `codex`, `opencode`, `gemini`,
+`qwen`, `copilot`, `deepcode`, `mimo`, `antigravity` + demos (`echo-demo`,
+`flood-demo`). Matriz de compatibilidad y estado de verificación en
+`jaravi-docs/Catalogo de Agentes.md`. **Patrón universal**: casi todo CLI de
+agente es un paquete npm con modo `-p`/`run` + un flag de auto-aprobación;
+invócalo vía `node <entry.js>` (no el shim `.cmd`) con `closeStdin: true`.
+
+## Buen ciudadano del protocolo MCP (v0.5.0)
+
+Tras una prueba de consumo por un agente orquestador externo (ver
+`observaciones.md`), el ejecutable se blindó como cliente MCP:
+
+- **`jaravi-mcp --help` / `--version`** responden y salen. Antes arrancaban un
+  servidor web y dejaban colgado a quien preguntaba.
+- **Modo automático**: sin flag, si `stdin` es un pipe (un cliente MCP nos
+  lanzó) habla **stdio**; si es una terminal (un humano), levanta **HTTP + el
+  Control Center**. `--stdio` y `--http` fuerzan el modo. Apuntar cualquier
+  cliente al ejecutable desnudo ahora **funciona a la primera**.
+- **stdout es sagrado en todos los modos**: solo lleva JSON-RPC. Todo log va a
+  stderr, y en stdio se silencia el ruido del framework (8 líneas → 0).
+- **`run_agent` nunca se cuelga**: bloquea como máximo `maxWaitSec` (90s por
+  defecto, bajo el timeout de cualquier cliente) y, si el sub-agente sigue
+  trabajando, devuelve `timedOut: true` + un campo **`nextStep`** que dice
+  literalmente qué llamar (`await_session` con el `sessionId`). La sesión sigue
+  viva. Para tareas de minutos, usa `spawn_agent` + `await_session`.
+- **OpenAPI**: en modo HTTP, `/swagger` (UI) y `/swagger/v1/swagger.json` para
+  guionizar contra la REST sin lidiar con el framing de JSON-RPC.
+
+## Control Center web (v0.4.0)
+
+Cuando arranca `jaravi-mcp`, Kestrel sirve un **Centro de Control** web en la
+raíz (`/`) — una sola página embebida en el exe (sin wwwroot en disco, sin
+framework, sin build step). Al iniciar imprime un banner en **stderr** con la
+URL exacta a abrir (crítico cuando cae a puerto efímero):
+
+```
+  ===== Jaravi Control Center =====
+    open:  http://localhost:5210
+    repo:  C:\Users\USER\source
+  ================================
+```
+
+Muestra en vivo: tarjetas de sesión con estado, **tiempo de ejecución** que
+tickea, **tokens** (reportados por el agente si los expone, o estimados del
+volumen de log, marcados con `~`), **líneas** y exit code; un panel de **Locks**
+con qué claim posee cada sesión y quién está en cola detrás; y una consola de
+logs por sesión (auto-scroll, virtualizada). Empuja datos por el WebSocket
+existente `/ws/events` (el `ChannelEventBus` con drop-oldest garantiza que una
+pestaña lenta jamás frene al motor) y refresca métricas con un poll ligero de
+`/api/sessions`. Permite spawn/kill desde la web (reusa el REST).
+
+**Multi-instancia**: cada `jaravi-mcp` registra `%APPDATA%\jaravi\instances\<pid>.json`;
+`GET /api/instances` lista las instancias vivas (poda PIDs muertos) y el
+dashboard ofrece un selector para saltar entre los repos que estés orquestando.
+El WPF (`Jaravi.Dashboard`) sigue disponible como cliente de escritorio secundario.
+
 ## Puerto y despliegue
 
 Resolución del puerto HTTP/telemetría: `JARAVI_URL` (env) → `ASPNETCORE_URLS` →
 `Urls` (config) → `http://localhost:5210`. Si el puerto está ocupado, el
-servidor cae a un puerto efímero y lo registra en el log (`Telemetry/REST
-listening on …`) en vez de crashear — permite instancias concurrentes.
+servidor cae a un puerto efímero y lo anuncia en el banner de stderr y en
+`/api/instances` en vez de crashear — permite instancias concurrentes.
 
 ## Orquestación avanzada (v2)
 

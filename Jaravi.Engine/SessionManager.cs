@@ -331,7 +331,11 @@ public sealed class SessionManager(
         while (await reader.WaitToReadAsync())
         {
             while (batch.Count < LogBatchSize && reader.TryRead(out var raw))
-                batch.Add(logStore.Append(session.Id, raw.Stream, AnsiSanitizer.Sanitize(raw.Text)));
+            {
+                var clean = AnsiSanitizer.Sanitize(raw.Text);
+                session.Tokens.Observe(clean);
+                batch.Add(logStore.Append(session.Id, raw.Stream, clean));
+            }
 
             if (batch.Count == 0) continue;
 
@@ -362,13 +366,41 @@ public sealed class SessionManager(
                 return;
             }
 
+            if (state != SessionState.Running) continue;
+
+            var started = session.StartedAt ?? session.CreatedAt;
+            var lastActivity = session.LastOutputAt ?? started;
+            var now = DateTimeOffset.UtcNow;
+
             // A session whose stdin was closed at launch can never be waiting
             // for input — silence just means the agent is thinking.
-            var lastActivity = session.LastOutputAt ?? session.StartedAt ?? session.CreatedAt;
-            if (state == SessionState.Running && !session.Profile.CloseStdin &&
-                (DateTimeOffset.UtcNow - lastActivity).TotalSeconds > session.Profile.IdleTimeoutSeconds)
+            if (!session.Profile.CloseStdin &&
+                (now - lastActivity).TotalSeconds > session.Profile.IdleTimeoutSeconds)
             {
                 Transition(session, SessionState.WaitingInput, "no output — possibly blocked on input");
+                continue;
+            }
+
+            // Fail-fast: a sub-agent that cannot be waiting for input and has
+            // stopped making progress must not hold a slot until the 30-minute
+            // hard deadline while the boss agent waits on it.
+            // LastOutputAt is only ever set by the agent's own output (system
+            // "[jaravi] …" lines never touch it), so it is the honest signal for
+            // "this agent has said nothing at all".
+            var health = new SessionHealth(
+                SecondsSinceStart: (now - started).TotalSeconds,
+                SecondsSinceLastOutput: (now - lastActivity).TotalSeconds,
+                HasEverPrinted: session.LastOutputAt is not null,
+                StdinClosed: session.Profile.CloseStdin,
+                SilenceBudgetSeconds: session.Profile.IdleTimeoutSeconds);
+
+            if (StuckDetector.IsStuck(health))
+            {
+                AppendSystemLog(session,
+                    $"fail-fast: no progress for {health.SecondsSinceLastOutput:F0}s with stdin closed — killing process tree");
+                Transition(session, SessionState.Killed, "stuck: no progress");
+                session.Process?.KillTree();
+                return;
             }
         }
     }
@@ -502,6 +534,9 @@ public sealed class SessionManager(
     {
         lock (session.Gate)
         {
+            var (tokens, estimated) = session.Tokens.Read();
+            var start = session.StartedAt ?? session.CreatedAt;
+            var end = session.ExitedAt ?? DateTimeOffset.UtcNow;
             return new SessionSnapshot
             {
                 SessionId = session.Id,
@@ -518,6 +553,9 @@ public sealed class SessionManager(
                 Labels = session.Request.Labels,
                 Claims = session.Request.Claims,
                 QueuedBehindSessionId = session.State == SessionState.Queued ? session.QueuedBehind : null,
+                DurationSeconds = session.StartedAt is null ? null : Math.Round((end - start).TotalSeconds, 1),
+                TokenCount = tokens,
+                TokenEstimated = estimated,
             };
         }
     }
@@ -534,6 +572,7 @@ public sealed class SessionManager(
         public AgentProfile Profile { get; } = profile;
         public string Workdir { get; } = workdir;
         public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
+        public TokenMeter Tokens { get; } = new();
 
         public SessionState State { get; set; } = SessionState.Created;
         public TaskCompletionSource StateChanged { get; set; } = NewSignal();

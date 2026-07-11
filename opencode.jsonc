@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Registro local del servidor MCP de Jaravi para este repo. Config de
+  // usuario (perfiles, allowed roots) vive en %APPDATA%\jaravi\, no aquí.
+  "mcp": {
+    "jaravi": {
+      "type": "local",
+      "command": ["jaravi-mcp", "--stdio"],
+      "enabled": true
+    }
+  }
+}

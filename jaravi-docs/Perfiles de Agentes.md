@@ -55,5 +55,20 @@ Los CLIs one-shot como `opencode run`, `claude -p` y `copilot -p` leen de stdin 
 - **antigravity** — Antigravity CLI (agy)
 - **opencode** — OpenCode CLI (líder open-source, 180k+ estrellas)
 - **codex** — Codex CLI de OpenAI, invocado vía `node` directo (el shim `.cmd` también pasa por `cmd.exe`); #1 en Terminal-Bench 2.1 (83.4%) según [[Investigacion de Mercado]]
+- **gemini** — Google Gemini CLI (`-p` + `--approval-mode yolo`)
+- **qwen** — Qwen Code (fork de Gemini CLI, mismos flags)
+- **copilot** — GitHub Copilot CLI (`-p` + `--allow-all-tools`, vía node)
+- **deepcode** — Deep Code CLI (`-p`); lee skills interoperables de `~/.agents/skills`
+- **mimo** — Mimo/mimocode (fork de OpenCode, modo `run`)
+
+La matriz completa con estado de verificación está en [[Catalogo de Agentes]].
+
+## Hot-reload: agregar agentes sin reiniciar (v0.3.2)
+
+La tool `reload_agents` re-lee `agents.json` en vivo. El flujo para dar más
+manos a Jaravi es: editar `%APPDATA%\jaravi\agents.json` (o el del repo) →
+llamar `reload_agents` → `list_agents` lo muestra → usarlo. Un archivo mal
+formado se rechaza y el catálogo activo sobrevive intacto. Esto es lo que hace
+a Jaravi aplicable a **cualquier** CLI, no a una lista fija.
 
 Véase también: [[Motor (Engine)|Motor]], [[Servidor MCP]], [[Operacion]]

@@ -6,21 +6,55 @@ tags: [jaravi, operacion, stdio, http, despliegue, scope-gate]
 
 Jaravi soporta dos modos de operación: **zero-touch stdio** y **HTTP compartido**.
 
+## Selección de modo (v0.5.0)
+
+`jaravi-mcp` decide su modo antes de arrancar ASP.NET:
+
+| Invocación | Modo | Por qué |
+|---|---|---|
+| `--help` / `--version` | ninguno | responde y sale (antes arrancaba un web server y colgaba al que preguntaba) |
+| `--stdio` | stdio forzado | para configs de clientes MCP |
+| `--http` | HTTP forzado | para el [[Control Center (Web)]] y scripting REST |
+| sin flag | **auto** | `stdin` es pipe → stdio (nos lanzó un cliente MCP); `stdin` es terminal → HTTP (nos lanzó un humano) |
+
+> [!important] stdout es sagrado
+> En todos los modos, `stdout` solo lleva JSON-RPC. Todo log va a `stderr`, y en
+> stdio se silencia el ruido del framework. Así, apuntar cualquier cliente MCP al
+> ejecutable desnudo funciona — antes, sin el flag, los logs de ASP.NET iban a
+> stdout y rompían el parser del cliente.
+
 ## Modo stdio (zero-touch)
 
-El archivo `.mcp.json` del proyecto apunta al ejecutable compilado con `--stdio`:
+`.mcp.json` (y el equivalente de cada CLI, ver abajo) apunta al comando global
+**`jaravi-mcp`** (instalado como `dotnet tool`, no una ruta al build local):
 
-```bash
-dotnet build Jaravi.McpServer
-# .mcp.json ya referencia Jaravi.McpServer/bin/Debug/net8.0/Jaravi.McpServer.exe
+```json
+{ "mcpServers": { "jaravi": { "type": "stdio", "command": "jaravi-mcp", "args": ["--stdio"] } } }
 ```
 
 En este modo:
-- El agente jefe (Claude Code) lanza Jaravi como proceso hijo.
+- El agente jefe lanza Jaravi como proceso hijo — sin intervención humana.
 - El MCP habla por stdin/stdout (JSON-RPC).
 - Todos los logs del servidor van a stderr.
 - Kestrel igualmente levanta WebSocket `/ws/events` y REST `/api` para el [[Dashboard]].
-- Si el puerto 5210 ya está ocupado, Kestrel elige un puerto efímero automáticamente.
+- Si el puerto 5210 ya está ocupado, Kestrel elige un puerto efímero automáticamente
+  (resolución: `JARAVI_URL` env → `ASPNETCORE_URLS` → config `Urls` → `:5210`).
+
+## Cualquier CLI puede ser el jefe
+
+Jaravi es agnóstico del cliente MCP. Registrado y verificado en esta máquina:
+
+| CLI | Mecanismo | Estado |
+|---|---|---|
+| Claude Code | `.mcp.json` del repo | ✅ en uso desde el inicio del proyecto |
+| OpenCode | `opencode.jsonc` del repo | ✅ verificado con `opencode mcp list` |
+| Codex | `codex mcp add jaravi -- jaravi-mcp --stdio` | ✅ verificado con `codex mcp list` |
+| Antigravity | `~/.antigravity/config/mcp_config.json` | ✅ entrada agregada (formato validado) |
+
+La skill [[Perfiles de Agentes|jaravi-orchestrator]] (la doctrina de cómo actuar
+de jefe) se distribuye vía el store universal `~/.agents/skills/`, enlazado a
+las carpetas de skills de OpenCode y Codex — instalable con
+`npx skills add JOSETRA44/jaravi@jaravi-orchestrator` una vez publicado el repo.
 
 ## Modo HTTP (compartido)
 
@@ -50,7 +84,7 @@ El [[Motor (Engine)|ScopeGate]] rechaza cualquier `workdir` fuera de las raíces
 dotnet build Jaravi.McpServer           # Compilar
 dotnet run --project Jaravi.McpServer   # Modo HTTP
 dotnet run --project Jaravi.Dashboard   # GUI observadora
-dotnet test                             # Suite completa (35+ tests)
+dotnet test                             # Suite completa (54 tests)
 ```
 
 > [!tip] El Dashboard funciona en ambos modos

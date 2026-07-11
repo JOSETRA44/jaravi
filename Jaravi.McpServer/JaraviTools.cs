@@ -18,6 +18,16 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
     public object ListAgents() =>
         registry.GetAll().Select(p => new { p.Id, p.Description, p.Command, io = p.Io.ToString().ToLowerInvariant() });
 
+    [McpServerTool(Name = "reload_agents"), Description(
+        "Re-read agents.json so profiles added or edited on disk become usable immediately — no server restart. " +
+        "Use this after dropping a new CLI profile into the registry so you can drive it right away. " +
+        "A malformed file is rejected and the running catalog is kept intact.")]
+    public object ReloadAgents()
+    {
+        var result = Guard(registry.Reload);
+        return new { reloaded = true, result.ProfileCount, profiles = result.ProfileIds, result.Source };
+    }
+
     [McpServerTool(Name = "spawn_agent"), Description(
         "Launch an external sub-agent session. Returns the sessionId immediately; use await_session to wait for it. " +
         "Prefer the structured 'brief' over free-text 'task' for deterministic prompts. " +
@@ -54,15 +64,18 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
     }
 
     [McpServerTool(Name = "run_agent"), Description(
-        "Fire-and-collect: spawn a sub-agent, wait for it to finish (or hit maxWaitSec), and return its summary in ONE call. " +
-        "The token-efficient path for delegating a bounded task and using the result — replaces spawn_agent + await_session + get_summary. " +
-        "For long-running or parallel work, prefer spawn_agent (returns immediately) + await_session.")]
+        "Fire-and-collect: spawn a sub-agent, wait up to maxWaitSec, and return a bounded summary in ONE call. " +
+        "The token-efficient path for a task that finishes quickly. " +
+        "IMPORTANT: this call ALWAYS returns within maxWaitSec (default 90s) — it never hangs. " +
+        "If the result says timedOut=true the sub-agent is still running: the session keeps going, " +
+        "so call await_session or get_summary with the returned sessionId to collect it. " +
+        "Real coding agents often take minutes; for those prefer spawn_agent (returns instantly) + await_session.")]
     public async Task<object> RunAgent(
         [Description("Agent profile id (see list_agents)")] string profile,
         [Description("Working directory for the sub-agent; must be inside an allowed root")] string workdir,
         [Description("Free-text task. Ignored when brief is provided")] string? task = null,
         [Description("Structured task: objective, context, constraints, deliverables, forbidden")] TaskBrief? brief = null,
-        [Description("Max seconds to block waiting for completion. Default 600")] int maxWaitSec = 600,
+        [Description("Max seconds to block before returning timedOut (the session keeps running). Default 90 — keep it under your MCP client's request timeout")] int maxWaitSec = 90,
         [Description("Run fully unattended (injects the profile's non-interactive flags). Default true")] bool unattended = true,
         [Description("Hard deadline in seconds; the process tree is killed when exceeded. Default 1800")] int timeoutSec = 1800,
         [Description("Extra environment variables (filtered by the profile's allowlist)")] Dictionary<string, string>? env = null,
@@ -81,6 +94,17 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
         var awaited = await Guard(() => sessions.AwaitSessionAsync(snapshot.SessionId, TimeSpan.FromSeconds(maxWaitSec), ct));
         var summary = sessions.GetSummary(snapshot.SessionId);
+        var waiting = awaited.Snapshot.State == SessionState.WaitingInput;
+
+        // A bare "timedOut: true" left the last external client believing the
+        // server had hung. Say plainly that the work continues and what to call.
+        var nextStep =
+            awaited.TimedOut
+                ? $"Still running — this call returned after {maxWaitSec}s, the sub-agent was NOT stopped. "
+                  + $"Call await_session(sessionId: \"{summary.SessionId}\") to keep waiting, or get_summary for what it has produced so far."
+                : waiting
+                    ? $"The sub-agent is waiting for input. Reply with send_input(sessionId: \"{summary.SessionId}\", …) or stop it with kill_agent."
+                    : null;
 
         return new
         {
@@ -91,7 +115,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
             summary.DurationSeconds,
             summary.TotalLogLines,
             timedOut = awaited.TimedOut,
-            waiting = awaited.Snapshot.State == Jaravi.Core.Models.SessionState.WaitingInput,
+            waiting,
+            nextStep,
             summary.ErrorLines,
             summary.TailLines,
         };
@@ -165,15 +190,19 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         {
             s.SessionId, s.ProfileId, state = s.State.ToString(), s.Pid, s.ExitCode,
             s.CreatedAt, s.StartedAt, s.ExitedAt, s.LastOutputAt, s.LogLineCount, s.Labels,
+            s.Claims, queuedBehind = s.QueuedBehindSessionId,
             lastLines = tail,
         };
     }
 
-    [McpServerTool(Name = "list_sessions"), Description("List all sessions with their current state.")]
+    [McpServerTool(Name = "list_sessions"), Description(
+        "List all sessions with their current state. Sessions in the 'Queued' state carry " +
+        "'queuedBehind' — the session holding the path claim they're waiting on.")]
     public object ListSessions() =>
         sessions.ListSnapshots().Select(s => new
         {
             s.SessionId, s.ProfileId, state = s.State.ToString(), s.Pid, s.ExitCode, s.CreatedAt, s.Labels,
+            queuedBehind = s.QueuedBehindSessionId,
         });
 
     [McpServerTool(Name = "read_output"), Description(

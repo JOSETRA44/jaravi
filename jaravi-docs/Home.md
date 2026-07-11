@@ -15,7 +15,7 @@ Jaravi convierte un agente de IA de alto nivel (Claude Code, OpenCode, Copilot C
 |---|---|
 | `Jaravi.Core` | Dominio puro: modelos, eventos, puertos. Sin dependencias externas. |
 | `Jaravi.Engine` | [[Motor (Engine)|Motor]]: procesos, sesiones, event bus, ring buffer, Scope Gate, sanitizador ANSI. |
-| `Jaravi.McpServer` | [[Servidor MCP]]: host Kestrel con 10 tools MCP (incl. `run_agent`) + WebSocket + REST. |
+| `Jaravi.McpServer` | [[Servidor MCP]]: host Kestrel con 11 tools MCP (incl. `run_agent`, `reload_agents`) + WebSocket + REST. |
 | `Jaravi.Dashboard` | [[Dashboard]] GUI WPF (MVVM) observadora vía HTTP/WebSocket. |
 | `Jaravi.Engine.Tests` | xUnit: 54 tests incluyendo E2E contra procesos reales. |
 
@@ -23,8 +23,10 @@ Jaravi convierte un agente de IA de alto nivel (Claude Code, OpenCode, Copilot C
 
 - [[Motor (Engine)|Motor]] — SessionManager, PipeProcessFactory, ChannelEventBus, ScopeGate, ClaimRegistry
 - [[Servidor MCP]] — Tools MCP, modos stdio y HTTP, agents.json
-- [[Dashboard]] — GUI WPF, MVVM, consumo de API REST/WS
-- [[Perfiles de Agentes]] — agents.json declarativo, lección closeStdin, perfil `codex`
+- [[Control Center (Web)]] — dashboard web servido por Kestrel (interfaz por defecto)
+- [[Dashboard]] — GUI WPF de escritorio (cliente secundario)
+- [[Perfiles de Agentes]] — agents.json declarativo, lección closeStdin, hot-reload
+- [[Catalogo de Agentes]] — matriz de 11 CLIs soportados con estado de verificación
 - [[Operacion]] — Zero-touch stdio vs HTTP, despliegue
 - [[Arquitectura]] — Diagrama y principios de Clean Architecture
 

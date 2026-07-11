@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jaravi — Control Center</title>
+<style>
+  :root{
+    --bg:#1E1E2E; --panel:#181825; --card:#232338; --card2:#2a2a42;
+    --accent:#7C6CF0; --text:#CDD6F4; --muted:#7F849C; --rule:#313244;
+    --running:#4CAF50; --waiting:#FFB300; --completed:#607D8B;
+    --failed:#E53935; --killed:#8E24AA; --queued:#42A5F5;
+    --stdout:#A6E3A1; --stderr:#F38BA8; --system:#89B4FA;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column}
+  a{color:var(--accent)}
+  code,.mono{font-family:"Cascadia Mono",Consolas,monospace}
+
+  header{background:var(--panel);padding:10px 16px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+  header .brand{font-weight:700;font-size:16px;color:#fff}
+  header .brand span{color:var(--accent)}
+  header .repo{color:var(--muted);font-size:12px}
+  header .grow{flex:1}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--failed)}
+  .dot.on{background:var(--running)}
+  select,button,input{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:5px 9px}
+  button{cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.danger:hover{border-color:var(--failed)}
+
+  .layout{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
+  .col{overflow-y:auto;min-height:0}
+  .left{border-right:1px solid var(--rule);padding:10px}
+  .right{display:flex;flex-direction:column;min-height:0}
+
+  .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 4px 6px}
+
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:9px 11px;margin-bottom:8px;cursor:pointer}
+  .card.sel{border-color:var(--accent);background:var(--card2)}
+  .card .row1{display:flex;align-items:center;gap:7px}
+  .badge{width:10px;height:10px;border-radius:50%;flex:none}
+  .card .name{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .state{font-size:11px;color:var(--muted)}
+  .card .metrics{display:flex;gap:12px;margin-top:5px;font-size:11px;color:var(--muted)}
+  .card .metrics b{color:var(--text);font-weight:600}
+
+  .spawn{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:10px;margin-bottom:6px}
+  .spawn .field{display:flex;gap:6px;margin-bottom:6px}
+  .spawn input,.spawn select{flex:1;min-width:0}
+
+  .locks{font-size:12px}
+  .lock{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:6px 9px;margin-bottom:6px}
+  .lock .glob{color:var(--waiting)}
+  .lock .who{color:var(--muted);font-size:11px}
+
+  .detail-head{padding:10px 16px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .detail-head .title{font-weight:600}
+  .kpi{display:flex;gap:6px;align-items:baseline}
+  .kpi b{font-size:16px;color:#fff}
+  .kpi span{font-size:11px;color:var(--muted)}
+  .console{flex:1;overflow-y:auto;background:#11111B;padding:8px 12px;font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+  .console .l{display:block}
+  .console .stdout{color:var(--stdout)}
+  .console .stderr{color:var(--stderr)}
+  .console .system{color:var(--system)}
+  .empty{color:var(--muted);padding:40px;text-align:center}
+  .foot{padding:6px 16px;border-top:1px solid var(--rule);color:var(--muted);font-size:11px;background:var(--panel)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Jaravi <span>Control Center</span></div>
+  <div class="repo" id="repo">—</div>
+  <div class="grow"></div>
+  <label class="repo">instancia:
+    <select id="instances" onchange="switchInstance()"></select>
+  </label>
+  <div><span class="dot" id="wsdot"></span><span class="repo" id="wsstate">conectando…</span></div>
+</header>
+
+<div class="layout">
+  <div class="col left">
+    <div class="spawn">
+      <div class="field">
+        <select id="profile"></select>
+      </div>
+      <div class="field">
+        <input id="task" placeholder="tarea para el sub-agente">
+      </div>
+      <div class="field">
+        <input id="workdir" placeholder="workdir (dentro de las raíces permitidas)">
+      </div>
+      <div class="field">
+        <button onclick="spawn()">Spawn</button>
+        <button onclick="refresh()">Refrescar</button>
+      </div>
+    </div>
+
+    <div class="section-title">Sesiones</div>
+    <div id="sessions"></div>
+
+    <div class="section-title">Locks activos (claims)</div>
+    <div id="locks" class="locks"><div class="repo" style="padding:4px">ninguno</div></div>
+  </div>
+
+  <div class="col right">
+    <div class="detail-head" id="detailHead">
+      <div class="title">Selecciona una sesión</div>
+    </div>
+    <div class="console" id="console"><div class="empty">Sin sesión seleccionada</div></div>
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+const state = { sessions:new Map(), selected:null, profiles:[], seqBySession:new Map() };
+const $ = id => document.getElementById(id);
+// Engine serializes SessionState as camelCase JSON ("running", "completed"…).
+const STATE_COLORS = {running:'--running',waitinginput:'--waiting',completed:'--completed',failed:'--failed',killed:'--killed',queued:'--queued',created:'--muted',starting:'--waiting'};
+const norm = s => (s||'').toLowerCase();
+const isTerminal = s => ['completed','failed','killed'].includes(norm(s));
+const color = s => `var(${STATE_COLORS[norm(s)]||'--muted'})`;
+
+async function j(url,opts){ const r = await fetch(url,opts); if(!r.ok) throw new Error(await r.text()); return r.status===204?null:r.json(); }
+
+async function bootstrap(){
+  try{
+    const inst = await j('/api/instances');
+    const sel = $('instances'); sel.innerHTML='';
+    const here = location.host;
+    inst.forEach(i=>{
+      const o=document.createElement('option');
+      const u=new URL(i.url.replace('0.0.0.0','localhost').replace('127.0.0.1','localhost'));
+      o.value=u.origin; o.textContent = (i.repoRoot.split(/[\\/]/).pop()||i.repoRoot)+' :'+u.port;
+      if(u.host===here) o.selected=true;
+      sel.appendChild(o);
+    });
+    if(inst.length<=1){ sel.style.display='none'; }
+    const self = inst.find(i=>{try{return new URL(i.url).host===here}catch{return false}}) || inst[0];
+    if(self) $('repo').textContent = self.repoRoot;
+  }catch(e){ /* single instance / older server */ $('instances').style.display='none'; }
+
+  state.profiles = await j('/api/agents');
+  const p=$('profile'); p.innerHTML='';
+  state.profiles.forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.id; p.appendChild(o); });
+
+  await refresh();
+  connectWS();
+  setInterval(pollMetrics, 2000);
+  setInterval(tickDurations, 1000);
+}
+
+async function refresh(){
+  const list = await j('/api/sessions');
+  state.sessions.clear();
+  list.forEach(s=>state.sessions.set(s.sessionId,s));
+  renderSessions(); renderLocks();
+  if(state.selected && !state.sessions.has(state.selected)) state.selected=null;
+  renderDetail();
+}
+
+async function pollMetrics(){
+  try{
+    const list = await j('/api/sessions');
+    list.forEach(s=>{ const prev=state.sessions.get(s.sessionId)||{}; state.sessions.set(s.sessionId,{...prev,...s}); });
+    renderSessions(); renderLocks();
+    if(state.selected) renderKpis(state.sessions.get(state.selected));
+  }catch(e){}
+}
+
+function fmtDur(sec){ if(sec==null) return '—'; if(sec<60) return sec.toFixed(0)+'s'; const m=Math.floor(sec/60); return m+'m '+Math.floor(sec%60)+'s'; }
+function liveDuration(s){
+  if(s.durationSeconds!=null && (s.exitedAt||isTerminal(s.state))) return s.durationSeconds;
+  if(s.startedAt){ return (Date.now()-new Date(s.startedAt).getTime())/1000; }
+  return s.durationSeconds;
+}
+
+function renderSessions(){
+  const box=$('sessions'); box.innerHTML='';
+  const arr=[...state.sessions.values()].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  if(!arr.length){ box.innerHTML='<div class="repo" style="padding:4px">sin sesiones</div>'; return; }
+  arr.forEach(s=>{
+    const d=document.createElement('div'); d.className='card'+(s.sessionId===state.selected?' sel':'');
+    d.onclick=()=>select(s.sessionId);
+    const tok = s.tokenCount!=null ? (s.tokenEstimated?'~':'')+s.tokenCount : '—';
+    d.innerHTML=`<div class="row1">
+        <span class="badge" style="background:${color(s.state)}"></span>
+        <span class="name">${s.profileId} · ${s.sessionId}</span>
+        <span class="state">${s.state}</span></div>
+      <div class="metrics">
+        <span>⏱ <b class="dur" data-id="${s.sessionId}">${fmtDur(liveDuration(s))}</b></span>
+        <span>🎟 <b>${tok}</b></span>
+        <span>📄 <b>${s.logLineCount??0}</b></span>
+        ${s.exitCode!=null?`<span>exit <b>${s.exitCode}</b></span>`:''}
+      </div>`;
+    box.appendChild(d);
+  });
+}
+
+function tickDurations(){
+  document.querySelectorAll('.dur').forEach(el=>{
+    const s=state.sessions.get(el.dataset.id); if(s) el.textContent=fmtDur(liveDuration(s));
+  });
+}
+
+function renderLocks(){
+  const box=$('locks');
+  const holders=[...state.sessions.values()].filter(s=>s.claims&&s.claims.length&&!isTerminal(s.state));
+  const queued=[...state.sessions.values()].filter(s=>s.queuedBehindSessionId);
+  if(!holders.length && !queued.length){ box.innerHTML='<div class="repo" style="padding:4px">ninguno</div>'; return; }
+  box.innerHTML='';
+  holders.forEach(s=>{
+    const waiters=queued.filter(q=>q.queuedBehindSessionId===s.sessionId).map(q=>q.sessionId);
+    const d=document.createElement('div'); d.className='lock';
+    d.innerHTML=`<div class="glob mono">${s.claims.join(', ')}</div>
+      <div class="who">poseído por ${s.profileId}·${s.sessionId}${waiters.length?` · en cola: ${waiters.join(', ')}`:''}</div>`;
+    box.appendChild(d);
+  });
+}
+
+function select(id){ state.selected=id; state.seqBySession.set(id,0); renderSessions(); loadLogs(id); renderDetail(); }
+
+function renderDetail(){
+  const s=state.selected?state.sessions.get(state.selected):null;
+  if(!s){ $('detailHead').innerHTML='<div class="title">Selecciona una sesión</div>'; $('console').innerHTML='<div class="empty">Sin sesión seleccionada</div>'; $('foot').textContent=''; return; }
+  renderKpis(s);
+}
+function renderKpis(s){
+  if(!s) return;
+  const tok = s.tokenCount!=null ? (s.tokenEstimated?'~':'')+s.tokenCount+(s.tokenEstimated?' (est)':' (rep)') : '—';
+  $('detailHead').innerHTML=`
+    <span class="badge" style="width:12px;height:12px;background:${color(s.state)}"></span>
+    <div class="title">${s.profileId} · ${s.sessionId}</div>
+    <div class="kpi"><b>${s.state}</b><span>estado</span></div>
+    <div class="kpi"><b class="dur" data-id="${s.sessionId}">${fmtDur(liveDuration(s))}</b><span>tiempo</span></div>
+    <div class="kpi"><b>${tok}</b><span>tokens</span></div>
+    <div class="kpi"><b>${s.logLineCount??0}</b><span>líneas</span></div>
+    ${s.exitCode!=null?`<div class="kpi"><b>${s.exitCode}</b><span>exit</span></div>`:''}
+    <div class="grow"></div>
+    ${!isTerminal(s.state)?`<button class="danger" onclick="kill('${s.sessionId}')">Kill</button>`:''}`;
+  $('foot').textContent = `workdir: ${s.workdir}${s.claims&&s.claims.length?'  ·  claims: '+s.claims.join(', '):''}`;
+}
+
+async function loadLogs(id){
+  const c=$('console'); c.innerHTML='';
+  try{
+    const lines = await j(`/api/sessions/${id}/logs?maxLines=500`);
+    lines.forEach(appendLine);
+    if(lines.length) state.seqBySession.set(id, lines[lines.length-1].seq);
+  }catch(e){ c.innerHTML='<div class="empty">no se pudieron cargar los logs</div>'; }
+}
+function appendLine(e){
+  const c=$('console'); const div=document.createElement('span');
+  div.className='l '+(e.stream||'stdout'); div.textContent=e.text;
+  c.appendChild(div);
+  while(c.childNodes.length>2000) c.removeChild(c.firstChild);
+  c.scrollTop=c.scrollHeight;
+}
+
+// ---- live WebSocket ----
+let ws, backoff=1000;
+function connectWS(){
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/events`);
+  ws.onopen=()=>{ backoff=1000; $('wsdot').classList.add('on'); $('wsstate').textContent='conectado'; };
+  ws.onclose=()=>{ $('wsdot').classList.remove('on'); $('wsstate').textContent='reconectando…'; setTimeout(connectWS, backoff); backoff=Math.min(backoff*2,15000); };
+  ws.onerror=()=>ws.close();
+  ws.onmessage=ev=>{ try{ handleEvent(JSON.parse(ev.data)); }catch(e){} };
+}
+function handleEvent(e){
+  switch(e.type){
+    case 'sessionStarted':
+      if(!state.sessions.has(e.sessionId))
+        state.sessions.set(e.sessionId,{sessionId:e.sessionId,profileId:e.profileId,state:'Running',workdir:e.workdir,pid:e.pid,createdAt:e.timestamp,labels:e.labels||[],claims:[]});
+      renderSessions(); break;
+    case 'sessionStateChanged':{
+      const s=state.sessions.get(e.sessionId); if(s){ s.state=e.newState; renderSessions(); renderLocks(); if(e.sessionId===state.selected) renderKpis(s); }
+      break; }
+    case 'sessionExited':{
+      const s=state.sessions.get(e.sessionId); if(s){ s.state=e.finalState; s.exitCode=e.exitCode; s.durationSeconds=e.durationSeconds; renderSessions(); if(e.sessionId===state.selected) renderKpis(s); }
+      break; }
+    case 'logBatchEmitted':
+      if(e.sessionId===state.selected){ (e.entries||[]).forEach(en=>{ appendLine(en); state.seqBySession.set(e.sessionId,en.seq); }); }
+      break;
+  }
+}
+
+// ---- actions ----
+async function spawn(){
+  const profileId=$('profile').value, task=$('task').value.trim(), workdir=$('workdir').value.trim();
+  if(!task||!workdir){ alert('Falta tarea o workdir'); return; }
+  try{
+    const snap = await j('/api/sessions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({profileId,task,workdir})});
+    state.sessions.set(snap.sessionId,snap); select(snap.sessionId);
+  }catch(e){ alert('Spawn falló: '+e.message); }
+}
+async function kill(id){ try{ await j(`/api/sessions/${id}/kill`,{method:'POST'}); }catch(e){ alert('Kill falló: '+e.message);} }
+function switchInstance(){ const o=$('instances').value; if(o && o!==location.origin) location.href=o; }
+
+bootstrap();
+</script>
+</body>
+</html>

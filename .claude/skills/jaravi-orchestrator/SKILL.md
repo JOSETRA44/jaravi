@@ -1,52 +1,82 @@
 ---
 name: jaravi-orchestrator
 description: >-
-  Convierte al agente en el JEFE de sub-agentes externos (Claude Code, OpenCode,
-  Copilot CLI…) a través de las tools MCP de Jaravi. Usa esta skill SIEMPRE que
-  el usuario pida delegar trabajo a otros agentes, ejecutar tareas en paralelo
-  con sub-agentes, orquestar CLIs de IA, o mencione Jaravi, spawn_agent o
-  sesiones de sub-agentes — incluso si no dice la palabra "orquestar". También
-  cuando una tarea grande se beneficiaría de dividirse entre varios agentes
-  trabajando a la vez.
+  Convierte al agente en el JEFE de sub-agentes externos (OpenCode, Codex,
+  Claude Code, Copilot CLI, Antigravity…) a través de las tools MCP de Jaravi.
+  Usa esta skill SIEMPRE que el usuario pida delegar trabajo a otros agentes,
+  ejecutar tareas en paralelo con sub-agentes, orquestar CLIs de IA, o
+  mencione Jaravi, spawn_agent, run_agent o sesiones de sub-agentes — incluso
+  si no dice la palabra "orquestar". También cuando una tarea grande se
+  beneficiaría de dividirse entre varios agentes trabajando a la vez.
 ---
 
 # Jaravi Orchestrator — el rol de jefe
 
-Eres el **orquestador**, no el ejecutor. Tu trabajo es descomponer el objetivo,
-delegar a sub-agentes vía las tools MCP de Jaravi (`spawn_agent`, `await_session`,
-`get_summary`…), supervisar con presupuesto mínimo de contexto y consolidar
-resultados. El código lo escriben los sub-agentes; tú diriges.
+Eres el **orquestador**, no el ejecutor. Tu trabajo es decidir qué delegar,
+descomponer el objetivo, lanzar sub-agentes vía las tools MCP de Jaravi
+(`spawn_agent`, `run_agent`, `await_session`, `get_summary`…), supervisar con
+presupuesto mínimo de contexto y consolidar resultados. El código lo escriben
+los sub-agentes; tú diriges. Esto es cierto sin importar qué CLI te esté
+ejecutando a ti como jefe — ver [¿Quién puede ser el jefe?](#quién-puede-ser-el-jefe).
 
 ## Por qué existe Jaravi
 
 Orquestar CLIs directamente en tu terminal rompe tu contexto: un sub-agente
-puede emitir 50 000 líneas y colapsar tu sesión. Jaravi absorbe todo ese output
-en su motor y solo te entrega respuestas compactas y deterministas. La GUI
+puede emitir 50 000 líneas y colapsar tu sesión. Peor aún, si tú mismo
+decidieras cada paso de la orquestación con inferencia (¿ya terminó? ¿reintento?
+¿lo mato?), pagarías tokens por cada una de esas micro-decisiones. Jaravi
+resuelve ambos problemas con un motor .NET **determinista**: absorbe todo el
+output de los subprocesos y solo te entrega respuestas compactas, y decide
+spawn/wait/cola/kill con una máquina de estados, no con un LLM. La GUI
 (Jaravi.Dashboard) ya muestra el firehose completo al humano en tiempo real —
 **no necesitas leer logs crudos jamás**; pedirlos solo destruye tu propia
 ventana de contexto.
 
-## Prerrequisito
+## Doctrina: hacer vs delegar (tú manejas el presupuesto de contexto)
 
-Ninguno: `.mcp.json` usa transporte **stdio** con el comando global `jaravi-mcp`
-(dotnet tool), así que Claude Code enciende y apaga el servidor solo (zero-touch).
-En modo stdio, Kestrel también levanta el WebSocket/REST para el Dashboard
-(fallback a puerto efímero si 5210 está ocupado). Config editable del usuario en
-`%APPDATA%\jaravi\` (`agents.json`, `appsettings.json`). Si cambiaste el código
-del servidor: `dotnet pack Jaravi.McpServer -c Release -o nupkg` y
-`dotnet tool update -g Jaravi.McpServer --add-source ./nupkg`.
-El modo HTTP (`dotnet run --project Jaravi.McpServer`, endpoint
-`http://localhost:5210/mcp`) sigue disponible para un motor compartido de larga vida.
+Es la misma decisión que enfrenta cualquier agente de código con sus propios
+sub-agentes: delegar cuesta un arranque frío + redactar un brief; hacerlo tú
+mismo cuesta contexto de tu ventana. Decide así:
+
+- **Hazlo tú mismo** cuando la tarea es corta y dirigida (una edición puntual,
+  una lectura, una decisión de diseño), cuando requiere el contexto completo de
+  tu conversación, o cuando redactar el brief costaría más que el trabajo.
+- **Delega** (`spawn_agent` / `run_agent`) cuando la tarea generaría output
+  masivo en tu terminal (builds, suites de tests, escaneos, auditorías),
+  cuando es paralelizable en trozos independientes, o cuando es autocontenida:
+  si un brief basta para que un agente frío la haga, no la hagas tú.
+- **Regla de oro del arranque frío**: el sub-agente NO vio tu conversación.
+  El brief debe ser autosuficiente — rutas absolutas, comandos exactos,
+  criterios de éxito. Si tu brief necesita "como te dije antes", está mal.
+
+## ¿Quién puede ser el jefe?
+
+Jaravi es agnóstico de quién lo use: cualquier cliente MCP puede conectarse al
+servidor `jaravi-mcp` y volverse el jefe. Ya está registrado en:
+
+| CLI | Cómo se conecta |
+|---|---|
+| Claude Code | `.mcp.json` del repo (stdio, zero-touch) |
+| OpenCode | `opencode.jsonc` del repo, objeto `"mcp"` |
+| Codex | `codex mcp add jaravi -- jaravi-mcp --stdio` (global, `~/.codex/config.toml`) |
+| Antigravity | `~/.antigravity/config/mcp_config.json`, entrada `"jaravi"` |
+
+Esta misma skill vive también en `~/.agents/skills/jaravi-orchestrator`
+(el store universal de `npx skills`) y queda enlazada a las carpetas de
+skills de OpenCode y Codex — así que si cualquiera de esos CLIs te está
+ejecutando a ti, la sigues teniendo disponible. El detalle de configuración
+está en [[Operacion]] dentro del vault del proyecto (`jaravi-docs/`).
 
 ## Usa las tools nativas — nunca escribas un cliente MCP
 
-Las tools de Jaravi están registradas vía `.mcp.json` (comando global
-`jaravi-mcp`), así que las invocas **directamente** como `spawn_agent`,
-`await_session`, `run_agent`… igual que cualquier tool nativa. **Jamás**
-escribas un script de PowerShell/curl que haga el handshake JSON-RPC a mano:
+Las tools de Jaravi ya están registradas como herramientas normales, así que
+las invocas **directamente**: `spawn_agent`, `run_agent`, `await_session`…
+igual que cualquier otra tool. **Jamás** escribas un script que haga el
+handshake JSON-RPC a mano (curl, PowerShell con `Invoke-WebRequest`, etc.):
 eso reintroduce exactamente el gasto de tokens y de contexto que Jaravi existe
-para eliminar. Si las tools no aparecen, el servidor no está registrado —
-pídelo, no lo reemplaces con un script.
+para eliminar. Si las tools no aparecen en tu lista, el servidor no está
+registrado para este CLI — pide que lo configuren (tabla arriba), no lo
+reemplaces con un script.
 
 ## Regla de eficiencia: `run_agent` para delegar-y-recoger
 
@@ -56,23 +86,6 @@ devuelve estado, exit code, duración, líneas de error y cola. Reemplaza tres
 round-trips por uno. Reserva `spawn_agent` (retorna al instante) + `await_session`
 para trabajo largo o en paralelo, donde quieres lanzar varias sesiones y luego
 sincronizarlas.
-
-## Doctrina: hacer vs delegar (tú manejas el presupuesto de contexto)
-
-Es la misma decisión que toma Claude Code con sus propios subagentes: delegar
-cuesta un arranque frío + redactar un brief; hacerlo tú cuesta contexto de tu
-ventana. Decide así:
-
-- **Hazlo tú mismo** cuando la tarea es corta y dirigida (una edición puntual,
-  una lectura, una decisión de diseño), cuando requiere el contexto completo de
-  tu conversación, o cuando redactar el brief costaría más que el trabajo.
-- **Delega** (`spawn_agent`) cuando la tarea generaría output masivo en tu
-  terminal (builds, suites de tests, escaneos, auditorías), cuando es
-  paralelizable en trozos independientes, o cuando es autocontenida: si un
-  brief basta para que un agente frío la haga, no la hagas tú.
-- **Regla de oro del arranque frío**: el sub-agente NO vio tu conversación.
-  El brief debe ser autosuficiente — rutas absolutas, comandos exactos,
-  criterios de éxito. Si tu brief necesita "como te dije antes", está mal.
 
 ## Pipelines: encadena agentes sin tocar el intermedio
 
@@ -119,9 +132,9 @@ detecta solapamiento por raíz de ruta y aplica tu política:
 
 1. **Descompón** el objetivo en tareas independientes y delegables.
 2. **Elige perfil** con `list_agents` (echo-demo y flood-demo son de prueba).
-3. **Lanza** con `spawn_agent` usando un `brief` estructurado (no texto libre):
-   `objective`, `context`, `constraints`, `deliverables`, `forbidden`.
-   El motor lo renderiza como prompt determinista y bien formado.
+3. **Lanza** con `spawn_agent`/`run_agent` usando un `brief` estructurado (no
+   texto libre): `objective`, `context`, `constraints`, `deliverables`,
+   `forbidden`. El motor lo renderiza como prompt determinista y bien formado.
    - `workdir` es obligatorio y debe estar dentro de las raíces permitidas
      (Scope Gate del motor; configurable en `appsettings.json → Engine:AllowedRoots`).
    - `unattended` es `true` por defecto: inyecta los flags no-interactivos del
@@ -144,7 +157,7 @@ detecta solapamiento por raíz de ruta y aplica tu política:
 ## Ejemplo
 
 ```
-spawn_agent(
+run_agent(
   profile: "claude",
   workdir: "C:\\Users\\USER\\source\\mi-proyecto",
   brief: {
@@ -154,22 +167,31 @@ spawn_agent(
     deliverables: ["tests en verde", "resumen de la causa raíz"],
     forbidden: ["hacer commit", "tocar archivos fuera de src/Auth"]
   },
-  timeoutSec: 900,
+  maxWaitSec: 900,
   labels: ["fix-auth"]
 )
-→ await_session(id, 300) → get_summary(id) → decidir siguiente paso
+→ un resultado con state/exitCode/tailLines → decidir siguiente paso
 ```
 
-## Agregar un nuevo tipo de sub-agente
+## Agregar un nuevo tipo de sub-agente (en caliente)
 
-No se escribe código: agrega una entrada en `Jaravi.McpServer/agents.json`
-(command, args con `{task}`/`{workdir}`, `unattendedArgs`, `env`) y recompila/
-reinicia el servidor. Verifícalo con `list_agents` y una sesión de humo antes
-de delegarle trabajo real. Dos lecciones aprendidas con CLIs reales:
+No se escribe código ni se reinicia el servidor: agrega una entrada en
+`agents.json` (`%APPDATA%\jaravi\agents.json` para la tool global, o el del
+repo) con `command`, `args` (`{task}`/`{workdir}`), `unattendedArgs`, `env`,
+luego llama **`reload_agents`** y el perfil queda usable al instante. Un archivo
+mal formado se rechaza sin tumbar el catálogo activo. Verifícalo con
+`list_agents` y una sesión de humo (`run_agent` con "responde: pong") antes de
+delegarle trabajo real. Esto es lo que te permite controlar cualquier CLI que
+el usuario instale, no una lista fija. Lecciones con CLIs reales:
 
-- **`closeStdin: true` para CLIs one-shot** (`opencode run`, `claude -p`…):
-  leen stdin hasta EOF cuando está en pipe y se cuelgan para siempre si queda
-  abierto. Con este flag el motor les entrega el EOF al arrancar
-  (`send_input` queda deshabilitado para esa sesión).
-- **Apunta al binario real, no al shim `.cmd` de npm**: los shims pasan por
-  `cmd.exe`, que destroza argumentos multilínea como los briefs renderizados.
+- **`closeStdin: true` para CLIs one-shot** (`opencode run`, `claude -p`,
+  `codex exec`…): leen stdin hasta EOF cuando está en pipe y se cuelgan para
+  siempre si queda abierto. Con este flag el motor les entrega el EOF al
+  arrancar (`send_input` queda deshabilitado para esa sesión).
+- **Apunta al binario/entrypoint real, no al shim `.cmd` de npm**: los shims
+  pasan por `cmd.exe`, que destroza argumentos multilínea como los briefs
+  renderizados. Para wrappers de Node (`command: node`, args con la ruta al
+  `.js`), invocar `node` directo evita el shell por completo. Patrón universal:
+  casi todo CLI de agente moderno es un paquete npm con modo `-p`/`run` +
+  un flag de auto-aprobación (`--yolo`/`--approval-mode yolo`, `--full-auto`,
+  `--allow-all-tools`, `--dangerously-skip-permissions`).

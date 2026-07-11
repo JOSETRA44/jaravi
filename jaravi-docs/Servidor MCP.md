@@ -13,16 +13,17 @@ tags: [jaravi, mcp, servidor, kestrel, tools, websocket]
 
 Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
 
-## Las 10 Tools MCP
+## Las 11 Tools MCP
 
 | Tool | Descripción |
 |---|---|
 | `list_agents` | Lista los perfiles de subagentes disponibles |
+| `reload_agents` | **v0.3.2**: re-lee `agents.json` en vivo — agrega/edita agentes sin reiniciar el servidor. Ver [[Catalogo de Agentes]] |
 | `spawn_agent` | Lanza un subagente; devuelve `sessionId` inmediatamente |
 | `run_agent` | **v0.3**: spawn + await + summary en una sola llamada — la vía token-eficiente para delegar-y-recoger |
 | `send_input` | Envía texto a stdin y/o teclas simbólicas (PTY) |
 | `get_status` | Estado compacto: estado, uptime, exit code, últimas 5 líneas |
-| `list_sessions` | Todas las sesiones con su estado actual |
+| `list_sessions` | Todas las sesiones con su estado actual (incluye `queuedBehind` — v0.3.1) |
 | `read_output` | Output acotado (máx. 500 líneas server-side) con `tail`, `grep`, `sinceSeq` |
 | `await_session` | Bloquea hasta que la sesión termine o necesite input |
 | `get_summary` | Digest compacto: exit code, duración, errores extraídos |
@@ -58,6 +59,10 @@ Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
 | `POST /api/sessions` | Crear sesión (spawn) |
 | `POST /api/sessions/{id}/kill` | Matar sesión |
 | `POST /api/sessions/{id}/input` | Enviar input |
+| `GET /` | [[Control Center (Web)]] — dashboard web embebido |
+| `GET /swagger` | UI de OpenAPI (solo modo HTTP) — v0.5.0 |
+| `GET /swagger/v1/swagger.json` | Documento OpenAPI de la REST, para scripting sin JSON-RPC |
+| `GET /api/instances` | Instancias vivas de jaravi-mcp (multi-repo, poda PIDs muertos) |
 | `GET /healthz` | Health check |
 
 ## Eventos WebSocket

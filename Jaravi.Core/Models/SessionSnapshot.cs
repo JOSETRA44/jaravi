@@ -19,6 +19,15 @@ public sealed record SessionSnapshot
 
     /// <summary>When Queued by a claim conflict: the session currently holding the claim.</summary>
     public string? QueuedBehindSessionId { get; init; }
+
+    /// <summary>Wall-clock seconds from start to exit (or to now if still running).</summary>
+    public double? DurationSeconds { get; init; }
+
+    /// <summary>Best-effort token count: parsed from the agent's own output, else estimated from log volume.</summary>
+    public int? TokenCount { get; init; }
+
+    /// <summary>True when <see cref="TokenCount"/> is a context estimate rather than a figure the agent reported.</summary>
+    public bool TokenEstimated { get; init; }
 }
 
 /// <summary>Compact digest a boss agent reads instead of raw logs.</summary>

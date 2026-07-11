@@ -9,10 +9,14 @@ using Jaravi.Engine;
 using Jaravi.Engine.Processes;
 using Jaravi.McpServer;
 
-// --stdio: MCP over stdin/stdout so an MCP client (Claude Code) can spawn and
-// own this server as a child process — zero-touch. Kestrel still runs for the
-// Dashboard's WebSocket/REST telemetry. Without the flag: MCP over HTTP /mcp.
-var useStdio = args.Contains("--stdio");
+// --help / --version are answered before ASP.NET exists: booting a web server
+// to answer a help request is what left the last external client hanging.
+if (CommandLine.TryHandleInfoFlags(args, out var infoExit))
+    return infoExit;
+
+// Stdio when an MCP client spawned us (stdin is a pipe), HTTP for a human at a
+// terminal; --stdio / --http override. See CommandLine.ResolveMode.
+var useStdio = CommandLine.ResolveMode(args) == RunMode.Stdio;
 
 // ContentRoot pinned to the exe location so agents.json/appsettings.json load
 // no matter which working directory the parent spawns us from.
@@ -22,11 +26,19 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory,
 });
 
+// stdout is sacred in EVERY mode: it either carries JSON-RPC or nothing at all.
+// Routing logs to stderr unconditionally means a misconfigured client can never
+// be fed ASP.NET log lines where it expects a protocol frame.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
+
 if (useStdio)
 {
-    // stdout belongs to the JSON-RPC protocol now — all logs go to stderr.
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
+    // The parent's log pane should not be flooded with ASP.NET lifecycle chatter
+    // ("Application started", "Hosting environment"…). Keep the framework quiet
+    // and let Jaravi's own messages through.
+    builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+    builder.Logging.AddFilter("ModelContextProtocol", LogLevel.Warning);
 }
 
 // Port resolution, single source of truth (env wins so a second instance / test
@@ -46,9 +58,12 @@ builder.WebHost.UseUrls(boundUrl);
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = JaraviJson.Options.PropertyNamingPolicy;
+    o.SerializerOptions.PropertyNameCaseInsensitive = true;
     foreach (var converter in JaraviJson.Options.Converters)
         o.SerializerOptions.Converters.Add(converter);
 });
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
+    o.SerializerOptions.PropertyNameCaseInsensitive = true);
 
 // ---- config: user dir (%APPDATA%\jaravi, editable) over package defaults ----
 // As a global dotnet tool the install store is immutable; the package ships
@@ -74,6 +89,20 @@ builder.Services.AddSingleton<ILogStore, RingBufferLogStore>();
 builder.Services.AddSingleton<IEventBus, ChannelEventBus>();
 builder.Services.AddSingleton<ISessionManager, SessionManager>();
 
+// OpenAPI: the REST surface must be explorable without wrestling JSON-RPC
+// framing — an external consumer looked for /swagger and found nothing.
+if (!useStdio)
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(o => o.SwaggerDoc("v1", new()
+    {
+        Title = "Jaravi REST API",
+        Version = CommandLine.Version,
+        Description = "Control and telemetry for Jaravi sub-agent sessions. "
+                    + "The same engine is exposed to boss agents over MCP (/mcp).",
+    }));
+}
+
 var mcpBuilder = builder.Services.AddMcpServer().WithTools<JaraviTools>();
 if (useStdio)
     mcpBuilder.WithStdioServerTransport();
@@ -85,20 +114,46 @@ var app = builder.Build();
 app.Logger.LogInformation("Agent registry: {AgentsFile} | Allowed roots: {Roots}",
     agentsFile, string.Join("; ", engineOptions.AllowedRoots));
 
-// Report the address actually bound (ephemeral fallback resolves the real port here).
+var instances = new InstanceRegistry(userConfigDir);
+var repoRoot = engineOptions.AllowedRoots.Count > 0
+    ? engineOptions.AllowedRoots[0]
+    : Directory.GetCurrentDirectory();
+
+// On startup the ephemeral fallback has resolved the real port, so this is where
+// we announce the Control Center URL — loudly on stderr (stdout is the MCP pipe),
+// and register the instance so sibling dashboards can discover it.
 app.Lifetime.ApplicationStarted.Register(() =>
 {
-    var addresses = app.Services.GetRequiredService<IServer>()
-        .Features.Get<IServerAddressesFeature>()?.Addresses;
-    if (addresses is { Count: > 0 })
-        app.Logger.LogInformation("Telemetry/REST listening on {Urls}", string.Join("; ", addresses));
+    var url = app.Services.GetRequiredService<IServer>()
+        .Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault()
+        ?? boundUrl;
+
+    app.Logger.LogInformation("Telemetry/REST listening on {Url}", url);
+    instances.Register(url, repoRoot);
+
+    // Unmissable banner even when logs are filtered — this is the URL the user
+    // opens. ASCII-only so it renders in any terminal / code page.
+    Console.Error.WriteLine();
+    Console.Error.WriteLine("  ===== Jaravi Control Center =====");
+    Console.Error.WriteLine($"    open:  {url}");
+    Console.Error.WriteLine($"    repo:  {repoRoot}");
+    Console.Error.WriteLine("  ================================");
+    Console.Error.WriteLine();
 });
+app.Lifetime.ApplicationStopping.Register(instances.Unregister);
 
 app.UseWebSockets();
 
 // ---- MCP endpoint (boss agents connect here) -------------------------------
 if (!useStdio)
+{
     app.MapMcp("/mcp");
+
+    // /swagger (UI) and /swagger/v1/swagger.json (the document an external
+    // consumer asked for, to script against REST without JSON-RPC framing).
+    app.UseSwagger();
+    app.UseSwaggerUI(o => o.SwaggerEndpoint("/swagger/v1/swagger.json", "Jaravi REST API"));
+}
 
 // ---- observer telemetry (Dashboard) ----------------------------------------
 app.Map("/ws/events", async context =>
@@ -118,6 +173,8 @@ var api = app.MapGroup("/api");
 
 api.MapGet("/agents", (IAgentRegistry registry) => registry.GetAll());
 
+api.MapGet("/instances", () => instances.List());
+
 api.MapGet("/sessions", (ISessionManager sessions) => sessions.ListSnapshots());
 
 api.MapGet("/sessions/{id}", (string id, ISessionManager sessions) =>
@@ -128,8 +185,21 @@ api.MapGet("/sessions/{id}/logs", (string id, ILogStore logs, long? sinceSeq, in
 
 api.MapGet("/sessions/{id}/summary", (string id, ISessionManager sessions) => sessions.GetSummary(id));
 
-api.MapPost("/sessions", async (SpawnRequest request, ISessionManager sessions, CancellationToken ct) =>
-    Results.Ok(await sessions.SpawnAsync(request, ct)));
+api.MapPost("/sessions", async (HttpContext ctx, ISessionManager sessions, CancellationToken ct) =>
+{
+    SpawnRequest? request;
+    try
+    {
+        request = await System.Text.Json.JsonSerializer.DeserializeAsync<SpawnRequest>(
+            ctx.Request.Body, JaraviJson.Options, ct);
+    }
+    catch (System.Text.Json.JsonException ex)
+    {
+        return Results.BadRequest(new { error = "Invalid spawn request: " + ex.Message });
+    }
+    if (request is null) return Results.BadRequest(new { error = "Empty spawn request body." });
+    return Results.Ok(await sessions.SpawnAsync(request, ct));
+});
 
 api.MapPost("/sessions/{id}/kill", async (string id, ISessionManager sessions, CancellationToken ct) =>
     Results.Ok(await sessions.KillAsync(id, "killed via REST", ct)));
@@ -142,6 +212,10 @@ api.MapPost("/sessions/{id}/input", async (string id, InputRequest input, ISessi
 
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok", service = "jaravi-mcp-server" }));
 
+// ---- Web Control Center: single embedded page, no wwwroot on disk ----------
+var dashboardHtml = new Lazy<string>(LoadEmbeddedDashboard);
+app.MapGet("/", () => Results.Content(dashboardHtml.Value, "text/html; charset=utf-8"));
+
 // Domain errors → clean HTTP status codes.
 app.Use(async (context, next) =>
 {
@@ -150,14 +224,27 @@ app.Use(async (context, next) =>
     catch (ProfileNotFoundException ex) { await WriteProblem(context, StatusCodes.Status404NotFound, ex.Message); }
     catch (ScopeGateException ex) { await WriteProblem(context, StatusCodes.Status403Forbidden, ex.Message); }
     catch (JaraviException ex) { await WriteProblem(context, StatusCodes.Status400BadRequest, ex.Message); }
+    catch (Microsoft.AspNetCore.Http.BadHttpRequestException ex) { await WriteProblem(context, StatusCodes.Status400BadRequest, ex.Message); }
 });
 
 app.Run();
+return 0;
 
 static async Task WriteProblem(HttpContext context, int status, string message)
 {
     context.Response.StatusCode = status;
     await context.Response.WriteAsJsonAsync(new { error = message });
+}
+
+static string LoadEmbeddedDashboard()
+{
+    var asm = typeof(Program).Assembly;
+    var name = asm.GetManifestResourceNames()
+        .FirstOrDefault(n => n.EndsWith("index.html", StringComparison.OrdinalIgnoreCase));
+    if (name is null) return "<h1>Jaravi</h1><p>Dashboard resource missing.</p>";
+    using var stream = asm.GetManifestResourceStream(name)!;
+    using var reader = new StreamReader(stream);
+    return reader.ReadToEnd();
 }
 
 static bool IsPortInUse(int port)

@@ -14,7 +14,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>jaravi-mcp</ToolCommandName>
     <PackageId>Jaravi.McpServer</PackageId>
-    <Version>0.3.0</Version>
+    <Version>G</Version>
     <Authors>Jaravi</Authors>
     <Description>Jaravi MCP server: deterministic orchestration of external CLI sub-agents (OpenCode, Claude Code, Copilot…) with context-collapse protection. MCP over stdio or HTTP + WebSocket telemetry for the Jaravi Dashboard.</Description>
     <PackageTags>mcp;agents;orchestration;cli</PackageTags>
@@ -36,7 +36,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Web Control Center: embedded so the global tool stays a single exe
+         with no wwwroot on disk (immutable tool-store friendly). -->
+    <EmbeddedResource Include="wwwroot\index.html" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.0.0-preview.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
 </Project>
