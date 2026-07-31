@@ -21,9 +21,61 @@ Referencias: McpServer → Engine → Core  |  Dashboard → Core (solo DTOs)
 | `Jaravi.Engine` | Motor: procesos (pipe I/O), SessionManager, event bus, ring buffer de logs, Scope Gate, sanitizador ANSI. |
 | `Jaravi.McpServer` | Host headless: tools MCP + WebSocket de telemetría + REST. |
 | `Jaravi.Dashboard` | GUI WPF (MVVM) observadora; solo consume HTTP/WS. |
-| `Jaravi.Engine.Tests` | xUnit: 54 tests incluyendo E2E contra procesos reales. |
+| `Jaravi.Engine.Tests` | xUnit: 75 tests del motor, incluyendo E2E contra procesos reales. |
+| `Jaravi.McpServer.Tests` | xUnit: 32 tests de contrato sobre la superficie MCP publicada (tools/resources/prompts). |
 
-## Instalación (dotnet tool global — recomendada)
+## Instalación en 30 segundos — pégale esto a tu agente
+
+No configures nada a mano. Copia el bloque completo y pégalo en el chat de tu
+CLI de IA (Claude Code, Codex, OpenCode, Gemini, Copilot CLI, Cursor…). El
+agente se instala y se registra a sí mismo:
+
+````text
+Instala y regístrate en el servidor MCP "Jaravi", que te permite delegar trabajo
+a otros CLIs de IA como sub-agentes. Hazlo tú, sin pedirme que ejecute nada.
+
+1. Comprueba que existe .NET 8 o superior: `dotnet --version`.
+   Si no está, dímelo y detente aquí.
+
+2. Instala la herramienta global (ya publica el comando `jaravi-mcp`):
+      dotnet tool install -g Jaravi.McpServer
+   Si ya estuviera instalada, usa `dotnet tool update -g Jaravi.McpServer`.
+   Si el paquete no está en NuGet todavía, clona
+   https://github.com/JOSETRA44/jaravi y usa:
+      dotnet pack Jaravi.McpServer -c Release -o nupkg
+      dotnet tool install -g Jaravi.McpServer --add-source ./nupkg
+
+3. Asegúrate de que el directorio de tools globales de .NET está en el PATH
+   (en Windows `%USERPROFILE%\.dotnet\tools`, en Linux/macOS `~/.dotnet/tools`).
+   Verifica con `jaravi-mcp --version`.
+
+4. Regístrate a ti mismo como cliente MCP, en TU propio archivo de configuración
+   (averigua cuál te corresponde; no me preguntes):
+     - Claude Code  -> `.mcp.json` del proyecto, o `claude mcp add`
+     - Codex        -> `codex mcp add jaravi -- jaravi-mcp --stdio`
+     - OpenCode     -> `opencode.jsonc`
+     - Gemini CLI   -> `~/.gemini/settings.json`
+     - otros        -> el JSON de servidores MCP que uses
+   La entrada, en todos los casos, es transporte stdio:
+       {"command": "jaravi-mcp", "args": ["--stdio"]}
+   Respeta el esquema exacto de tu cliente y NO borres los servidores que ya
+   estén configurados.
+
+5. Reinicia/recarga tus servidores MCP y comprueba la conexión llamando a la
+   tool `list_agents`. Debe devolver la lista de perfiles de CLI disponibles.
+
+6. Cuando funcione, dime en dos líneas: qué archivo tocaste y qué perfiles de
+   sub-agente salieron en `list_agents`.
+````
+
+> [!tip] ¿Tu agente se resiste a usar Jaravi?
+> No debería: desde v0.8.0 el servidor envía **instrucciones MCP** en el
+> handshake que explican qué es, por qué su uso está autorizado y cuáles son
+> sus límites reales (Scope Gate, sesiones inspeccionables y matables). Si tu
+> cliente las ignora, instala además la skill `jaravi-orchestrator` (más abajo)
+> y pídele explícitamente: *"usa Jaravi para delegar esto"*.
+
+## Instalación manual (dotnet tool global)
 
 ```bash
 dotnet pack Jaravi.McpServer -c Release -o nupkg      # (o descarga el .nupkg)
@@ -137,6 +189,98 @@ Tras una prueba de consumo por un agente orquestador externo (ver
   viva. Para tareas de minutos, usa `spawn_agent` + `await_session`.
 - **OpenAPI**: en modo HTTP, `/swagger` (UI) y `/swagger/v1/swagger.json` para
   guionizar contra la REST sin lidiar con el framing de JSON-RPC.
+
+## Ciudadanía MCP completa (v0.6.0)
+
+Más allá del handshake básico, las 11 tools usan el protocolo a fondo:
+
+- **Anotaciones** (`readOnlyHint`/`destructiveHint`/`idempotentHint`/
+  `openWorldHint`): cualquier cliente sabe sin preguntar que `kill_agent` es
+  destructiva y las 6 tools de lectura son seguras.
+- **Progress notifications**: `run_agent` y `await_session` reportan progreso
+  real cada 5s mientras esperan (no-op si el cliente no lo pidió). Verificado
+  en vivo: 8 notificaciones fluyendo durante una espera de 30s — esto es lo
+  que evita que un cliente perciba un "hang" en tareas largas.
+- **Cancelación limpia**: si el *cliente* cancela una llamada a `run_agent`
+  (no si `maxWaitSec` simplemente se agota — eso deja la sesión viva a
+  propósito), Jaravi mata el árbol de procesos antes de propagar la
+  cancelación, evitando huérfanos.
+
+Detalle de la investigación (incluyendo dos diagnósticos externos que
+resultaron falsos al reproducirlos) en `jaravi-docs/Brechas del Protocolo MCP.md`.
+
+## Superficie MCP completa: resources + prompts (v0.7.0)
+
+De las 6 superficies del protocolo MCP, Jaravi ahora cubre 5 — la sexta
+(sampling) queda descartada a propósito porque delega en el cliente
+exactamente la parte que Jaravi existe para no delegar (motor determinista).
+
+- **Resources**: `jaravi://agents` y `jaravi://sessions` exponen el catálogo
+  y las sesiones como contexto de solo lectura direccionable por URI — un
+  boss agent los lee sin gastar un turno de tool-call. Plus tres plantillas
+  de recurso (`jaravi://sessions/{sessionId}/summary|logs|errors`) para el
+  mismo dato de una sesión puntual. Mismo mapeo de errores que las tools.
+- **Prompts**: `delegate_task` (rellena una llamada a `run_agent` con
+  instrucciones de cómo leer `timedOut`/`nextStep`) y `audit_then_fix`
+  (pipeline de dos etapas auditor→fixer encadenado por
+  `inputFromSessionId`, para no tener que leer tú mismo el hallazgo crudo).
+  Bajan la barrera de entrada para cualquier agente que no interiorizó la
+  doctrina de `jaravi-orchestrator`.
+- **Elicitation**: investigada (`McpServer.ElicitAsync`) y descartada — exige
+  que el cliente declare una capacidad de UI de formulario que ningún host
+  real de Jaravi implementa hoy, y duplicaría algo que el boss agent ya
+  resuelve mejor hablando directamente con su propio usuario.
+
+Verificado en vivo sobre el binario global reinstalado: `resources/list`,
+`resources/templates/list`, `resources/read`, `prompts/list` y `prompts/get`
+responden correctamente, y una lectura cruzada (`list_agents` vía tool vs.
+`jaravi://agents` vía resource) confirma que ambas superficies devuelven
+datos consistentes. Detalle completo, incluyendo el razonamiento de por qué
+se descartó elicitation, en `jaravi-docs/Brechas del Protocolo MCP.md`.
+
+## Por qué los agentes se resistían a usarlo (v0.8.0)
+
+Varios agentes externos ignoraban Jaravi o se negaban a delegar. La causa no era
+la calidad de las tools: era que **el servidor no se presentaba**.
+
+MCP define un campo `instructions` que se devuelve en el handshake `initialize`,
+y los clientes lo inyectan como *system message* del modelo. Jaravi lo dejaba
+vacío. Un agente veía entonces once tools sin contexto que lanzan otros agentes
+de IA con flags de auto-aprobación, no tenía forma de saber quién había
+autorizado eso, y hacía lo razonable: no tocarlas.
+
+Ahora el servidor se presenta (`JaraviInstructions.cs`) explicando, en orden:
+
+1. **Que su uso está autorizado y por qué** — si el agente ve estas tools es
+   porque el usuario instaló y registró el servidor él mismo; ejecutar
+   sub-agentes es el propósito del servidor, no un efecto secundario.
+2. **Los límites reales, para que el agente juzgue por sí mismo** — los
+   sub-agentes son CLIs que el usuario ya tenía, corriendo con su propia cuenta;
+   el Scope Gate rechaza cualquier workdir fuera de las raíces permitidas; toda
+   sesión es inspeccionable y matable; nada corre invisible.
+3. **Cuándo delegar y cuándo no** — explícitamente: no delegues lo que resuelves
+   en dos tool-calls; delegar es para volumen y paralelismo.
+4. **Los cinco malentendidos habituales** — sobre todo que `timedOut: true`
+   significa *sigue corriendo*, no *falló* (el error más caro observado en
+   consumo real).
+
+Es el texto de mayor apalancamiento del proyecto: lo lee **todo** agente jefe
+antes de decidir si confía en la herramienta. Verificado en el handshake real y
+cubierto por tests de contrato.
+
+### Red de seguridad: tests de contrato (v0.7.1)
+
+Esa superficie ahora está cubierta por `Jaravi.McpServer.Tests` (32 tests), que
+construye el contenedor **igual que `Program.cs`** y afirma sobre lo que el SDK
+publica al cable, no sobre lo que devuelven nuestros métodos. Ataja la clase de
+bug que no lanza excepción y por tanto nadie nota: una errata en un `UriTemplate`
+que deja un recurso inalcanzable, una tool nueva sin anotaciones, o un cambio de
+registro que publica cero prompts.
+
+Escribirlos ya pagó: descubrieron que `WithPromptsFromAssembly()` resuelve contra
+el **assembly llamador**, así que mover ese registro a otro assembly habría
+publicado cero prompts en silencio. `Program.cs` ahora pasa el assembly explícito.
+Detalle en `jaravi-docs/Pruebas de Contrato MCP.md`.
 
 ## Control Center web (v0.4.0)
 

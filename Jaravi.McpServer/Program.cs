@@ -103,7 +103,19 @@ if (!useStdio)
     }));
 }
 
-var mcpBuilder = builder.Services.AddMcpServer().WithTools<JaraviTools>();
+// ServerInstructions is the only chance to explain what Jaravi IS before a boss
+// agent decides whether to touch it — clients inject it as a system message.
+// Without it, agents saw eleven bare tools that spawn other AI agents and
+// refused or ignored them; see JaraviInstructions for the reasoning.
+var mcpBuilder = builder.Services.AddMcpServer(options => options.ServerInstructions = JaraviInstructions.Text)
+    .WithTools<JaraviTools>()
+    .WithResources<JaraviResources>()
+    // JaraviPrompts is static, so WithPrompts<T>() can't take it (CS0718 — C# forbids
+    // a static type as a generic argument); FromAssembly discovers it by attribute.
+    // The assembly is passed explicitly: the overload otherwise falls back to the
+    // *calling* assembly, so moving this registration into a helper in another
+    // assembly would silently publish zero prompts.
+    .WithPromptsFromAssembly(typeof(JaraviPrompts).Assembly);
 if (useStdio)
     mcpBuilder.WithStdioServerTransport();
 else

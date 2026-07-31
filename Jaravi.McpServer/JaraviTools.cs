@@ -14,11 +14,16 @@ namespace Jaravi.McpServer;
 [McpServerToolType]
 public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registry, ILogStore logStore)
 {
-    [McpServerTool(Name = "list_agents"), Description("List the external agent profiles Jaravi can spawn.")]
+    [McpServerTool(Name = "list_agents", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description(
+        "Start here: lists the external CLI agents installed on this machine that Jaravi can delegate to, " +
+        "with the profile id you pass to run_agent/spawn_agent. Cheap and read-only — call it before " +
+        "assuming a given agent is or isn't available.")]
     public object ListAgents() =>
         registry.GetAll().Select(p => new { p.Id, p.Description, p.Command, io = p.Io.ToString().ToLowerInvariant() });
 
-    [McpServerTool(Name = "reload_agents"), Description(
+    [McpServerTool(Name = "reload_agents", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false),
+     Description(
         "Re-read agents.json so profiles added or edited on disk become usable immediately — no server restart. " +
         "Use this after dropping a new CLI profile into the registry so you can drive it right away. " +
         "A malformed file is rejected and the running catalog is kept intact.")]
@@ -28,7 +33,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         return new { reloaded = true, result.ProfileCount, profiles = result.ProfileIds, result.Source };
     }
 
-    [McpServerTool(Name = "spawn_agent"), Description(
+    [McpServerTool(Name = "spawn_agent", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = true),
+     Description(
         "Launch an external sub-agent session. Returns the sessionId immediately; use await_session to wait for it. " +
         "Prefer the structured 'brief' over free-text 'task' for deterministic prompts. " +
         "Chain agents with inputFromSessionId (the engine injects the previous terminal session's result into the task). " +
@@ -63,7 +69,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         };
     }
 
-    [McpServerTool(Name = "run_agent"), Description(
+    [McpServerTool(Name = "run_agent", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = true),
+     Description(
         "Fire-and-collect: spawn a sub-agent, wait up to maxWaitSec, and return a bounded summary in ONE call. " +
         "The token-efficient path for a task that finishes quickly. " +
         "IMPORTANT: this call ALWAYS returns within maxWaitSec (default 90s) — it never hangs. " +
@@ -86,13 +93,40 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         [Description("Optional regex filter for inputKind=tail")] string? inputGrep = null,
         [Description("Path globs this session claims exclusively (relative to workdir)")] string[]? claims = null,
         [Description("On claim conflict or full slots: reject (default) or queue")] string? onConflict = null,
+        IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         var request = BuildRequest(profile, workdir, task, brief, unattended, timeoutSec, env, labels,
             inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
 
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
-        var awaited = await Guard(() => sessions.AwaitSessionAsync(snapshot.SessionId, TimeSpan.FromSeconds(maxWaitSec), ct));
+        progress?.Report(new ProgressNotificationValue
+        {
+            Progress = 0, Message = $"spawned {snapshot.ProfileId} (pid {snapshot.Pid})",
+        });
+
+        AwaitResult awaited;
+        try
+        {
+            // Sliced polling instead of one long AwaitSessionAsync: a client that
+            // never hears from the server for 90s often times out on its own side
+            // (this is the exact failure an external boss agent hit). Reporting
+            // progress every few seconds — a no-op if the client never asked for
+            // it — keeps the call alive in clients that reset their timeout on
+            // progress, and gives a live view of what the sub-agent is doing.
+            awaited = await AwaitWithProgressAsync(snapshot.SessionId, maxWaitSec, progress, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // The CALLER cancelled the tool call (not maxWaitSec elapsing — that
+            // path returns normally with timedOut:true and deliberately leaves
+            // the session running). An abandoned tool call must not abandon the
+            // process behind it: best-effort kill with a fresh token, since ct
+            // is already cancelled, then let the cancellation propagate.
+            try { await sessions.KillAsync(snapshot.SessionId, "run_agent call was cancelled", CancellationToken.None); }
+            catch (JaraviException) { /* already terminal — nothing to clean up */ }
+            throw;
+        }
         var summary = sessions.GetSummary(snapshot.SessionId);
         var waiting = awaited.Snapshot.State == SessionState.WaitingInput;
 
@@ -120,6 +154,39 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
             summary.ErrorLines,
             summary.TailLines,
         };
+    }
+
+    /// <summary>
+    /// Waits for a session in bounded slices instead of one long block, reporting
+    /// progress after each slice — a no-op when the client never asked for it
+    /// (no progressToken), but keeps a heartbeat flowing for clients that reset
+    /// their own timeout on progress, which is exactly what silence for 90s cost
+    /// us with an external boss agent.
+    /// </summary>
+    private async Task<AwaitResult> AwaitWithProgressAsync(
+        string sessionId, int maxWaitSec, IProgress<ProgressNotificationValue>? progress, CancellationToken ct)
+    {
+        const int sliceSeconds = 5;
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(maxWaitSec);
+
+        while (true)
+        {
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            var slice = remaining <= TimeSpan.Zero ? TimeSpan.Zero : Min(TimeSpan.FromSeconds(sliceSeconds), remaining);
+
+            var awaited = await Guard(() => sessions.AwaitSessionAsync(sessionId, slice, ct));
+            if (!awaited.TimedOut || DateTimeOffset.UtcNow >= deadline)
+                return awaited;
+
+            var s = awaited.Snapshot;
+            var elapsed = Math.Round((DateTimeOffset.UtcNow - (s.StartedAt ?? s.CreatedAt)).TotalSeconds, 0);
+            progress?.Report(new ProgressNotificationValue
+            {
+                Progress = (float)elapsed, Message = $"{s.State} — {s.LogLineCount} log lines so far",
+            });
+        }
+
+        static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
     }
 
     private static SpawnRequest BuildRequest(
@@ -169,7 +236,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         return Enum.TryParse(value, ignoreCase: true, out result);
     }
 
-    [McpServerTool(Name = "send_input"), Description(
+    [McpServerTool(Name = "send_input", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = true),
+     Description(
         "Send a line of text to a session's stdin, and/or symbolic keys (Up, Down, Enter, Ctrl+C — PTY sessions only).")]
     public async Task<object> SendInput(
         [Description("Target session id")] string sessionId,
@@ -181,7 +249,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         return new { ok = true };
     }
 
-    [McpServerTool(Name = "get_status"), Description("Compact status of one session: state, uptime, exit code, last log lines (max 5).")]
+    [McpServerTool(Name = "get_status", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description("Compact status of one session: state, uptime, exit code, last log lines (max 5).")]
     public object GetStatus([Description("Session id")] string sessionId)
     {
         var s = Guard(() => sessions.GetSnapshot(sessionId));
@@ -195,7 +264,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         };
     }
 
-    [McpServerTool(Name = "list_sessions"), Description(
+    [McpServerTool(Name = "list_sessions", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description(
         "List all sessions with their current state. Sessions in the 'Queued' state carry " +
         "'queuedBehind' — the session holding the path claim they're waiting on.")]
     public object ListSessions() =>
@@ -205,7 +275,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
             queuedBehind = s.QueuedBehindSessionId,
         });
 
-    [McpServerTool(Name = "read_output"), Description(
+    [McpServerTool(Name = "read_output", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description(
         "Read session output, always bounded (hard server-side cap). Use grep and/or tail — never page through everything.")]
     public object ReadOutput(
         [Description("Session id")] string sessionId,
@@ -228,15 +299,18 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         };
     }
 
-    [McpServerTool(Name = "await_session"), Description(
+    [McpServerTool(Name = "await_session", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description(
         "Deterministic sync point: blocks until the session finishes or needs input (or the wait times out). " +
-        "Returns the resulting state — check 'timedOut'.")]
+        "Returns the resulting state — check 'timedOut'. Reports progress every few seconds while it waits " +
+        "(a no-op unless your client requested it), so a long wait never looks like a hang.")]
     public async Task<object> AwaitSession(
         [Description("Session id")] string sessionId,
         [Description("Max seconds to wait. Default 120")] int timeoutSec = 120,
+        IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
-        var result = await Guard(() => sessions.AwaitSessionAsync(sessionId, TimeSpan.FromSeconds(timeoutSec), ct));
+        var result = await AwaitWithProgressAsync(sessionId, timeoutSec, progress, ct);
         return new
         {
             result.Snapshot.SessionId,
@@ -246,12 +320,14 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         };
     }
 
-    [McpServerTool(Name = "get_summary"), Description(
+    [McpServerTool(Name = "get_summary", ReadOnly = true, Idempotent = true, OpenWorld = false),
+     Description(
         "Compact digest of a session: exit code, duration, extracted error lines and output tail. Read this instead of raw logs.")]
     public object GetSummary([Description("Session id")] string sessionId) =>
         Guard(() => sessions.GetSummary(sessionId));
 
-    [McpServerTool(Name = "kill_agent"), Description("Terminate a session's entire process tree.")]
+    [McpServerTool(Name = "kill_agent", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false),
+     Description("Terminate a session's entire process tree.")]
     public async Task<object> KillAgent(
         [Description("Session id")] string sessionId,
         [Description("Reason, recorded in the session log")] string? reason = null,
@@ -261,16 +337,6 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         return new { snapshot.SessionId, state = snapshot.State.ToString() };
     }
 
-    /// <summary>Maps domain errors to clean MCP tool errors instead of opaque 500s.</summary>
-    private static T Guard<T>(Func<T> action)
-    {
-        try { return action(); }
-        catch (JaraviException ex) { throw new McpException(ex.Message); }
-    }
-
-    private static async Task<T> Guard<T>(Func<Task<T>> action)
-    {
-        try { return await action(); }
-        catch (JaraviException ex) { throw new McpException(ex.Message); }
-    }
+    private static T Guard<T>(Func<T> action) => McpGuard.Run(action);
+    private static Task<T> Guard<T>(Func<Task<T>> action) => McpGuard.Run(action);
 }

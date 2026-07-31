@@ -482,3 +482,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Jaravi: ad-hoc stdio/JSON-RPC debug transcripts from manual MCP probing.
+# Permanent coverage of the MCP surface lives in Jaravi.McpServer.Tests —
+# scratch harnesses belong in the scratchpad, not the repo root.
+/out*.txt
+/test_mcp*.py

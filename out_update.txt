@@ -1,5 +1,0 @@
--> {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0.0"}}}
-[STDOUT] {"result":{"protocolVersion":"2024-11-05","capabilities":{"logging":{},"tools":{"listChanged":true}},"serverInfo":{"name":"Jaravi.McpServer","version":"0.5.0.0"}},"id":1,"jsonrpc":"2.0"}
--> {"jsonrpc": "2.0", "id": 1, "method": "notifications/initialized"}
-[STDOUT] {"error":{"code":-32601,"message":"Method \u0027notifications/initialized\u0027 is not available."},"id":1,"jsonrpc":"2.0"}
--> {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "run_agent", "arguments": {"profile": "opencode", "workdir": "C:\\Users\\USER\\source\\APPS-C++\\consola\\jaravi", "task": "Responde con un 'Hola Jaravi, soy OpenCode y funciono correctamente.'"}}}

@@ -32,6 +32,10 @@ Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
 > [!warning] read_output tiene un hard cap de 500 líneas
 > El parámetro `maxLines` está limitado por `Engine:MaxReadLines` (500). El agente jefe nunca puede inundar su contexto.
 
+## Ciudadanía MCP completa (v0.6.0)
+
+Tras un ciclo de feedback de un consumidor externo (ver [[Brechas del Protocolo MCP]]), las 11 tools llevan **anotaciones** (`readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint`) para que cualquier cliente sepa cuáles son seguras sin preguntar — `kill_agent` es la única marcada `destructiveHint:true`. `run_agent` y `await_session` reportan **progreso real** cada 5s mientras esperan (`IProgress<ProgressNotificationValue>`, no-op si el cliente no pidió progreso vía `_meta.progressToken`) — verificado en vivo con 8 notificaciones reales fluyendo durante una espera de 30s. `run_agent` también mata la sesión si el propio cliente cancela la llamada (`notifications/cancelled`), evitando huérfanos — aunque el SDK preview no propaga esa cancelación en modo stdio (ver la nota de brechas para el detalle).
+
 ## Orquestación avanzada en `spawn_agent` (v2)
 
 - **Pipelines**: `inputFromSessionId` + `inputKind` (`summary`|`tail`|`errors`) —
@@ -74,4 +78,4 @@ El endpoint `/ws/events` emite JSON con discriminador `type`:
 - `logBatchEmitted` — lote de líneas de output
 - `sessionExited` — sesión terminada con código de salida
 
-Véase también: [[Operacion]], [[Perfiles de Agentes]]
+Véase también: [[Operacion]], [[Perfiles de Agentes]], [[Brechas del Protocolo MCP]], [[Pruebas de Contrato MCP]], [[Adopcion por Agentes]]

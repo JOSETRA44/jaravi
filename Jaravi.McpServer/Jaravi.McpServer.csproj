@@ -14,16 +14,30 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>jaravi-mcp</ToolCommandName>
     <PackageId>Jaravi.McpServer</PackageId>
-    <Version>0.5.0</Version>
+    <Version>0.8.0</Version>
     <Authors>Jaravi</Authors>
     <Description>Jaravi MCP server: deterministic orchestration of external CLI sub-agents (OpenCode, Claude Code, Copilot…) with context-collapse protection. MCP over stdio or HTTP + WebSocket telemetry for the Jaravi Dashboard.</Description>
     <PackageTags>mcp;agents;orchestration;cli</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The repo README is the package README: anyone landing on the NuGet page
+         gets the same install/usage story instead of a bare dependency list. -->
+    <None Include="..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Jaravi.Engine\Jaravi.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- McpGuard is internal on purpose (it is an implementation detail of how
+         engine errors become protocol errors), but that mapping is exactly what
+         the tests need to pin down. -->
+    <InternalsVisibleTo Include="Jaravi.McpServer.Tests" />
   </ItemGroup>
 
   <ItemGroup>
