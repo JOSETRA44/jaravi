@@ -61,10 +61,28 @@ public sealed class JsonAgentRegistry : IAgentRegistry
 
     private static List<AgentProfile> Parse(string path)
     {
-        using var stream = File.OpenRead(path);
-        var doc = JsonSerializer.Deserialize<AgentsDocument>(stream, JsonOptions)
-                  ?? throw new JaraviException($"Could not parse agent registry '{path}'.");
-        return doc.Agents;
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var doc = JsonSerializer.Deserialize<AgentsDocument>(stream, JsonOptions)
+                      ?? throw new JaraviException($"Could not parse agent registry '{path}'.");
+            // Placeholders are resolved here, once, so every consumer of the catalog
+            // (spawn, the PATH probe in 'agents' and 'doctor', the REST snapshot)
+            // sees the same concrete command. Expanding later would let 'doctor'
+            // report a profile as installed that spawn then failed to launch.
+            return [.. doc.Agents.Select(ProfilePaths.Expand)];
+        }
+        catch (JsonException ex)
+        {
+            // A hand-edited registry is the most likely file in the system to have a
+            // typo, and it is read on every startup and every reload. Escaping as a
+            // raw JsonException buried the one thing the author needs — which file,
+            // and where — under a stack trace. Name both, and keep it a domain error
+            // so every host reports it the same way.
+            throw new JaraviException(
+                $"Agent registry '{path}' is not valid JSON: {ex.Message} "
+                + "Expected {\"agents\": [ ... ]}.");
+        }
     }
 
     private sealed record AgentsDocument(List<AgentProfile> Agents);

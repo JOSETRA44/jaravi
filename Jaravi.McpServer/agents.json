@@ -1,6 +1,11 @@
 {
   // Declarative agent registry — adding a new external agent CLI is an entry
-  // here, never a code change. Placeholders: {task}, {workdir}.
+  // here, never a code change.
+  //   Spawn-time placeholders: {task}, {workdir}.
+  //   Load-time path placeholders, so this file stays portable between machines:
+  //   {npmRoot} (global npm module dir), {home}, {appData}, {localAppData}.
+  //   Never hardcode an absolute user path here: it makes every profile dead on
+  //   arrival on anyone else's machine, which reads as "Jaravi is broken".
   "agents": [
     {
       "id": "echo-demo",
@@ -20,7 +25,7 @@
     {
       "id": "claude",
       "description": "Claude Code as a headless sub-agent (non-interactive print mode).",
-      "command": "claude.cmd",
+      "command": "claude",
       "args": ["-p", "{task}"],
       "unattendedArgs": ["--dangerously-skip-permissions"],
       "env": { "CI": "true" },
@@ -33,7 +38,7 @@
       "id": "copilot",
       "description": "GitHub Copilot CLI, non-interactive prompt mode. Invoked via node directly (the .cmd shim mangles multi-line briefs). --allow-all-tools is required for non-interactive runs.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@github\\copilot\\npm-loader.js", "-p", "{task}"],
+      "args": ["{npmRoot}\\@github\\copilot\\npm-loader.js", "-p", "{task}"],
       "unattendedArgs": ["--allow-all-tools"],
       "env": { "CI": "true" },
       "envAllowlist": [],
@@ -44,7 +49,7 @@
     {
       "id": "antigravity",
       "description": "Antigravity CLI (agy) as a sub-agent in non-interactive print mode.",
-      "command": "C:\\Users\\USER\\AppData\\Local\\agy\\bin\\agy.exe",
+      "command": "{localAppData}\\agy\\bin\\agy.exe",
       "args": ["--print", "{task}", "--print-timeout", "15m"],
       "unattendedArgs": ["--dangerously-skip-permissions"],
       "env": { "CI": "true" },
@@ -57,7 +62,7 @@
       "id": "codex",
       "description": "OpenAI Codex CLI as a sub-agent, non-interactive exec mode (#1 on Terminal-Bench 2.1 as of jul-2026). Invoked via node directly — the .cmd shim wraps cmd.exe and mangles multi-line briefs.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex.js", "exec", "{task}", "--skip-git-repo-check"],
+      "args": ["{npmRoot}\\@openai\\codex\\bin\\codex.js", "exec", "{task}", "--skip-git-repo-check"],
       "unattendedArgs": ["--full-auto"],
       "env": {},
       "envAllowlist": [],
@@ -68,7 +73,7 @@
     {
       "id": "opencode",
       "description": "OpenCode CLI as a sub-agent (direct binary — npm .cmd shims mangle multi-line args).",
-      "command": "C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe",
+      "command": "{npmRoot}\\opencode-ai\\bin\\opencode.exe",
       "args": ["run", "{task}"],
       "unattendedArgs": [],
       "env": { "CI": "true" },
@@ -81,7 +86,7 @@
       "id": "gemini",
       "description": "Google Gemini CLI, non-interactive (-p) with auto-approve. Invoked via node directly.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@google\\gemini-cli\\bundle\\gemini.js", "-p", "{task}"],
+      "args": ["{npmRoot}\\@google\\gemini-cli\\bundle\\gemini.js", "-p", "{task}"],
       "unattendedArgs": ["--approval-mode", "yolo"],
       "env": { "CI": "true" },
       "envAllowlist": ["GEMINI_MODEL"],
@@ -93,7 +98,7 @@
       "id": "qwen",
       "description": "Qwen Code CLI (Gemini-CLI fork), non-interactive (-p) with auto-approve. Invoked via node directly.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@qwen-code\\qwen-code\\cli-entry.js", "-p", "{task}"],
+      "args": ["{npmRoot}\\@qwen-code\\qwen-code\\cli-entry.js", "-p", "{task}"],
       "unattendedArgs": ["--approval-mode", "yolo"],
       "env": { "CI": "true" },
       "envAllowlist": ["OPENAI_MODEL"],
@@ -105,7 +110,7 @@
       "id": "deepcode",
       "description": "Deep Code CLI, non-interactive prompt mode (-p). Reads interoperable skills from ~/.agents/skills. Invoked via node directly.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@vegamo\\deepcode-cli\\dist\\cli.js", "-p", "{task}"],
+      "args": ["{npmRoot}\\@vegamo\\deepcode-cli\\dist\\cli.js", "-p", "{task}"],
       "unattendedArgs": [],
       "env": { "CI": "true" },
       "envAllowlist": [],
@@ -117,7 +122,7 @@
       "id": "mimo",
       "description": "Mimo (mimocode) CLI, OpenCode-family fork. One-shot 'run' mode. Invoked via node on its bin entry.",
       "command": "node",
-      "args": ["C:\\Users\\USER\\AppData\\Roaming\\npm\\node_modules\\@mimo-ai\\cli\\bin\\mimo", "run", "{task}"],
+      "args": ["{npmRoot}\\@mimo-ai\\cli\\bin\\mimo", "run", "{task}"],
       "unattendedArgs": [],
       "env": { "CI": "true" },
       "envAllowlist": ["MIMO_MODEL"],

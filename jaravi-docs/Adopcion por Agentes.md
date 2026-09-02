@@ -8,6 +8,12 @@ Jaravi puede estar impecablemente construido y aun así **no usarse**. Durante
 varias rondas, agentes externos conectados al servidor lo ignoraban o se negaban
 a delegar. La causa no estaba en las tools.
 
+> [!success] Continuación: v0.10.0
+> El mismo patrón volvió una tercera vez, ahora en la instalación: la única
+> autoconfiguración era prosa que un humano tenía que pegar. Se resolvió con
+> `jaravi-mcp install`, que escribe el registro MCP **y** el fichero de
+> instrucciones que el agente ya está leyendo. Ver [[Autoconfiguracion]].
+
 ## El diagnóstico: el servidor no se presentaba
 
 MCP define un campo `instructions` que el servidor devuelve en el handshake
@@ -84,4 +90,21 @@ así que tienen un techo de tamaño.
 Verificado en vivo sobre el binario global 0.8.0: el `initialize` devuelve 3273
 caracteres de instrucciones con todas las afirmaciones clave presentes.
 
-Véase también: [[Servidor MCP]], [[Brechas del Protocolo MCP]], [[Pruebas de Contrato MCP]], [[Perfiles de Agentes]], [[Home|Jaravi]]
+## Tercer frente: los que no podían llegar (v0.9.0)
+
+Cerrado el problema de *querer* usarlo, quedaba el de *poder*. Un agente externo
+reportó que `jaravi-mcp` no era invocable como CLI y que no podía registrar un
+servidor MCP a mitad de sesión. Ambas cosas eran ciertas, y la primera era culpa
+de Jaravi: no existía ningún subcomando.
+
+La respuesta no fue documentar mejor, sino **dar el camino que faltaba** — un CLI
+completo en el mismo binario, que no necesita registro ni reinicio. El detalle
+está en [[CLI de Shell]].
+
+> [!note] Un patrón que se repite
+> Las tres rondas de adopción fallaron por lo mismo: **Jaravi no se explicaba en
+> la superficie que el agente inspecciona primero.** Primero fue el handshake
+> `initialize` sin `instructions`; después el `--help` sin comandos. La capacidad
+> existía en ambos casos.
+
+Véase también: [[Servidor MCP]], [[Brechas del Protocolo MCP]], [[Pruebas de Contrato MCP]], [[Perfiles de Agentes]], [[CLI de Shell]], [[Home|Jaravi]]

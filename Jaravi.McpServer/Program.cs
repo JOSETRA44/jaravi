@@ -8,15 +8,35 @@ using Jaravi.Core.Models;
 using Jaravi.Engine;
 using Jaravi.Engine.Processes;
 using Jaravi.McpServer;
+using Jaravi.McpServer.Cli;
 
 // --help / --version are answered before ASP.NET exists: booting a web server
 // to answer a help request is what left the last external client hanging.
 if (CommandLine.TryHandleInfoFlags(args, out var infoExit))
     return infoExit;
 
+// CLI verbs (run, agents, doctor…) are answered without ASP.NET too. This is the
+// path for an agent that has a shell but no MCP registration — clients read their
+// MCP config only at startup, so a server discovered mid-session is unreachable
+// over MCP until a restart. See CliRunner.
+if (CliRunner.IsCliVerb(args))
+    return await CliRunner.RunAsync(args);
+
 // Stdio when an MCP client spawned us (stdin is a pipe), HTTP for a human at a
 // terminal; --stdio / --http override. See CommandLine.ResolveMode.
 var useStdio = CommandLine.ResolveMode(args) == RunMode.Stdio;
+
+// An agent's shell tool also runs commands with stdin redirected, which is the
+// very signal used to infer "an MCP client spawned us". So a bare `jaravi-mcp`
+// typed by an agent becomes a server waiting forever on a pipe that will never
+// carry JSON-RPC: first contact with Jaravi is a hang, with nothing said. A real
+// MCP client ignores stderr, so this line costs a client nothing and tells the
+// caller who was never a client exactly what to run instead.
+if (useStdio && CommandLine.ModeWasInferred(args))
+    Console.Error.WriteLine(
+        "jaravi-mcp: no command given, so this is now an MCP stdio server waiting on stdin"
+        + " and will not return. For the shell CLI run 'jaravi-mcp --help', or start here:"
+        + " 'jaravi-mcp install' then 'jaravi-mcp agents'.");
 
 // ContentRoot pinned to the exe location so agents.json/appsettings.json load
 // no matter which working directory the parent spawns us from.
@@ -68,26 +88,19 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(o =>
 // ---- config: user dir (%APPDATA%\jaravi, editable) over package defaults ----
 // As a global dotnet tool the install store is immutable; the package ships
 // read-only defaults and the first run seeds an editable copy for the user.
-var userConfigDir = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "jaravi");
-SeedUserConfig(userConfigDir);
+var userConfigDir = JaraviConfig.UserConfigDir;
+JaraviConfig.SeedUserConfig(userConfigDir);
 
 builder.Configuration.AddJsonFile(Path.Combine(userConfigDir, "appsettings.json"), optional: true);
 builder.Configuration.AddEnvironmentVariables(); // env vars keep the last word
 
-var agentsFile = ResolveAgentsFile(userConfigDir);
+var agentsFile = JaraviConfig.ResolveAgentsFile(userConfigDir);
 
 // ---- engine composition root ----------------------------------------------
-var engineOptions = builder.Configuration.GetSection("Engine").Get<EngineOptions>() ?? new EngineOptions();
-if (engineOptions.AllowedRoots.Count == 0)
-    engineOptions.AllowedRoots.Add(Directory.GetCurrentDirectory());
-
-builder.Services.AddSingleton(engineOptions);
-builder.Services.AddSingleton<IAgentRegistry>(_ => JsonAgentRegistry.LoadFromFile(agentsFile));
-builder.Services.AddSingleton<IAgentProcessFactory, PipeProcessFactory>();
-builder.Services.AddSingleton<ILogStore, RingBufferLogStore>();
-builder.Services.AddSingleton<IEventBus, ChannelEventBus>();
-builder.Services.AddSingleton<ISessionManager, SessionManager>();
+// Same recipe the CLI uses — one composition root, so both hosts resolve the
+// identical registry, Scope Gate roots and limits.
+var engineOptions = JaraviConfig.ResolveEngineOptions(builder.Configuration);
+builder.Services.AddJaraviEngine(engineOptions, agentsFile);
 
 // OpenAPI: the REST surface must be explorable without wrestling JSON-RPC
 // framing — an external consumer looked for /swagger and found nothing.
@@ -271,49 +284,6 @@ static bool IsPortInUse(int port)
     {
         return true;
     }
-}
-
-static void SeedUserConfig(string dir)
-{
-    try
-    {
-        Directory.CreateDirectory(dir);
-        var agentsTarget = Path.Combine(dir, "agents.json");
-        var agentsDefault = Path.Combine(AppContext.BaseDirectory, "agents.json");
-        if (!File.Exists(agentsTarget) && File.Exists(agentsDefault))
-            File.Copy(agentsDefault, agentsTarget);
-
-        var settingsTarget = Path.Combine(dir, "appsettings.json");
-        if (!File.Exists(settingsTarget))
-            File.WriteAllText(settingsTarget,
-                "{\n  // Overrides de usuario para jaravi-mcp (gana sobre los defaults del paquete).\n" +
-                "  \"Engine\": {\n    \"AllowedRoots\": []\n  }\n}\n");
-    }
-    catch (IOException) { /* config dir unavailable → package defaults still work */ }
-    catch (UnauthorizedAccessException) { }
-}
-
-/// <summary>
-/// agents.json resolution: JARAVI_AGENTS env → ./agents.json (project-local) →
-/// user config dir (only when running from the immutable tool store) → package default.
-/// </summary>
-static string ResolveAgentsFile(string userConfigDir)
-{
-    var inToolStore = AppContext.BaseDirectory.Contains(
-        $"{Path.DirectorySeparatorChar}.store{Path.DirectorySeparatorChar}",
-        StringComparison.OrdinalIgnoreCase);
-
-    string?[] candidates =
-    [
-        Environment.GetEnvironmentVariable("JARAVI_AGENTS"),
-        Path.Combine(Directory.GetCurrentDirectory(), "agents.json"),
-        inToolStore ? Path.Combine(userConfigDir, "agents.json") : null,
-        Path.Combine(AppContext.BaseDirectory, "agents.json"),
-    ];
-
-    return candidates.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
-        ?? throw new JaraviException(
-            "No agents.json found (checked JARAVI_AGENTS, working directory, user config and package defaults).");
 }
 
 internal sealed record InputRequest(string? Text, string[]? Keys);

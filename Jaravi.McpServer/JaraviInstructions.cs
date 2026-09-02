@@ -74,5 +74,19 @@ internal static class JaraviInstructions
         Read `jaravi://agents` or `jaravi://sessions` for that same context without
         spending a tool call. The `delegate_task` and `audit_then_fix` prompts contain
         ready-made versions of the two most common workflows.
+
+        ## There is also a CLI, for anyone who cannot reach these tools
+
+        The same binary is a shell command, `jaravi` or `jaravi-mcp`: `run --agent <id>
+        --task "..."` delegates and returns a bounded summary, `agents` lists profiles,
+        `doctor` reports which MCP clients are installed here and whether Jaravi is
+        registered in each, and `install` registers it with all of them and writes a
+        Jaravi section into the instruction files they read at startup.
+
+        Reach for this whenever a user reports that another agent cannot use Jaravi.
+        MCP config is read only at client startup, so an agent that learns about Jaravi
+        mid-session cannot register it — but it can run these commands immediately, and
+        `jaravi-mcp install` makes its next session start with the tools already there.
+        CLI sessions attach to this same server, so they appear in `list_sessions`.
         """;
 }

@@ -19,61 +19,81 @@ Referencias: McpServer → Engine → Core  |  Dashboard → Core (solo DTOs)
 |---|---|
 | `Jaravi.Core` | Dominio puro: modelos, eventos, puertos. Cero dependencias. |
 | `Jaravi.Engine` | Motor: procesos (pipe I/O), SessionManager, event bus, ring buffer de logs, Scope Gate, sanitizador ANSI. |
-| `Jaravi.McpServer` | Host headless: tools MCP + WebSocket de telemetría + REST. |
+| `Jaravi.McpServer` | Host headless: tools MCP + **CLI de shell** + WebSocket de telemetría + REST. |
 | `Jaravi.Dashboard` | GUI WPF (MVVM) observadora; solo consume HTTP/WS. |
 | `Jaravi.Engine.Tests` | xUnit: 75 tests del motor, incluyendo E2E contra procesos reales. |
-| `Jaravi.McpServer.Tests` | xUnit: 32 tests de contrato sobre la superficie MCP publicada (tools/resources/prompts). |
+| `Jaravi.McpServer.Tests` | xUnit: 57 tests de contrato sobre la superficie publicada (tools/resources/prompts) y sobre el CLI. |
 
-## Instalación en 30 segundos — pégale esto a tu agente
+## Uso inmediato desde la shell (sin MCP, sin registrar nada)
 
-No configures nada a mano. Copia el bloque completo y pégalo en el chat de tu
-CLI de IA (Claude Code, Codex, OpenCode, Gemini, Copilot CLI, Cursor…). El
-agente se instala y se registra a sí mismo:
+Jaravi **no es solo un servidor MCP**: el mismo binario es un CLI completo. Esto
+importa porque los clientes MCP leen su configuración **solo al arrancar**, así
+que un agente que descubre Jaravi a mitad de sesión no puede registrarlo — pero
+sí puede ejecutar esto ahora mismo:
 
-````text
-Instala y regístrate en el servidor MCP "Jaravi", que te permite delegar trabajo
-a otros CLIs de IA como sub-agentes. Hazlo tú, sin pedirme que ejecute nada.
+```bash
+jaravi-mcp doctor                                   # ¿está usable aquí? config, Scope Gate, CLIs instalados
+jaravi-mcp agents                                   # perfiles disponibles
+jaravi-mcp run --agent codex --task "audita src/"   # delega y devuelve un resumen acotado
+```
 
-1. Comprueba que existe .NET 8 o superior: `dotnet --version`.
-   Si no está, dímelo y detente aquí.
+Con un servidor vivo (`jaravi-mcp --http` en segundo plano) hay además ciclo
+completo: `spawn` → `await` → `status` / `logs` / `sessions` / `kill`.
 
-2. Instala la herramienta global (ya publica el comando `jaravi-mcp`):
-      dotnet tool install -g Jaravi.McpServer
-   Si ya estuviera instalada, usa `dotnet tool update -g Jaravi.McpServer`.
-   Si el paquete no está en NuGet todavía, clona
-   https://github.com/JOSETRA44/jaravi y usa:
-      dotnet pack Jaravi.McpServer -c Release -o nupkg
-      dotnet tool install -g Jaravi.McpServer --add-source ./nupkg
+> [!important] Los comandos se **adjuntan** a un Jaravi que ya esté corriendo
+> Si hay una instancia viva (la del cliente MCP incluida), el CLI la usa: las
+> sesiones que lances desde la shell son **las mismas** que ve el agente jefe
+> por MCP y el Control Center. Si no hay ninguna, `run` levanta un motor privado
+> que dura lo que dura el comando.
 
-3. Asegúrate de que el directorio de tools globales de .NET está en el PATH
-   (en Windows `%USERPROFILE%\.dotnet\tools`, en Linux/macOS `~/.dotnet/tools`).
-   Verifica con `jaravi-mcp --version`.
+**Códigos de salida** — `did not finish` y `failed` son distintos a propósito:
 
-4. Regístrate a ti mismo como cliente MCP, en TU propio archivo de configuración
-   (averigua cuál te corresponde; no me preguntes):
-     - Claude Code  -> `.mcp.json` del proyecto, o `claude mcp add`
-     - Codex        -> `codex mcp add jaravi -- jaravi-mcp --stdio`
-     - OpenCode     -> `opencode.jsonc`
-     - Gemini CLI   -> `~/.gemini/settings.json`
-     - otros        -> el JSON de servidores MCP que uses
-   La entrada, en todos los casos, es transporte stdio:
-       {"command": "jaravi-mcp", "args": ["--stdio"]}
-   Respeta el esquema exacto de tu cliente y NO borres los servidores que ya
-   estén configurados.
+| Código | Significado |
+|---|---|
+| `0` | Terminó y el sub-agente salió con 0 |
+| `1` | Error de Jaravi (perfil inexistente, Scope Gate, config) |
+| `2` | Uso incorrecto |
+| `3` | El sub-agente terminó con código distinto de 0 |
+| `4` | **Sigue corriendo** — no es un fallo; recógelo con `jaravi-mcp await <id>` |
 
-5. Reinicia/recarga tus servidores MCP y comprueba la conexión llamando a la
-   tool `list_agents`. Debe devolver la lista de perfiles de CLI disponibles.
+Añade `--json` a cualquier comando para salida parseable; el código de salida es
+el mismo en ambos formatos.
 
-6. Cuando funcione, dime en dos líneas: qué archivo tocaste y qué perfiles de
-   sub-agente salieron en `list_agents`.
-````
+## Instalación en 30 segundos
 
-> [!tip] ¿Tu agente se resiste a usar Jaravi?
-> No debería: desde v0.8.0 el servidor envía **instrucciones MCP** en el
-> handshake que explican qué es, por qué su uso está autorizado y cuáles son
-> sus límites reales (Scope Gate, sesiones inspeccionables y matables). Si tu
-> cliente las ignora, instala además la skill `jaravi-orchestrator` (más abajo)
-> y pídele explícitamente: *"usa Jaravi para delegar esto"*.
+```bash
+dotnet tool install -g Jaravi.McpServer   # ver "Instalación manual" si NuGet aún no sirve 0.9.x
+jaravi-mcp install                        # se registra solo en todos tus CLIs de IA
+jaravi-mcp doctor                         # comprueba que quedó usable
+```
+
+`install` toca tres superficies, y las tres hacen falta:
+
+1. **La config MCP** de cada cliente instalado en la máquina — Claude Code, Codex,
+   OpenCode, Gemini, Qwen, Copilot — con el esquema exacto de cada uno y sin borrar
+   los servidores que ya tuvieras. Esto sirve para la **próxima** sesión: ningún
+   cliente relee su config MCP a mitad de sesión, en ninguno de los seis.
+2. **Los ficheros de instrucciones** que esos agentes leen al arrancar (`AGENTS.md`,
+   `CLAUDE.md`, `GEMINI.md`…), en un bloque delimitado por marcadores. Esto es lo
+   que rescata la sesión **actual**: el agente lee ahí que existe un CLI que no
+   necesita registro ninguno, y puede delegar acto seguido.
+3. **El alias `jaravi`**, porque es el nombre que un agente prueba primero.
+
+`--dry-run` enseña qué tocaría sin escribir un byte. `--scope project` lo limita a
+este repo. `uninstall` lo revierte entero, y cada fichero modificado deja un
+`.jaravi.bak` al lado.
+
+> [!tip] ¿Tu agente se resiste a usar Jaravi, o dice que no puede?
+> Tres causas distintas, cada una ya con respuesta.
+> - **"No me consta que esté autorizado."** Desde v0.8.0 el servidor manda
+>   instrucciones MCP en el handshake: qué es, por qué su uso está autorizado y
+>   cuáles son sus límites reales (Scope Gate, sesiones inspeccionables y matables).
+> - **"No existe ningún comando `jaravi`."** Era cierto hasta v0.9.0. Ahora el
+>   binario es un CLI completo y `jaravi-mcp install` deja también el alias corto.
+> - **"No puedo registrar un MCP a mitad de sesión."** Sigue siendo cierto, y no se
+>   arregla desde el servidor. Por eso `install` escribe además en el fichero de
+>   instrucciones que el agente ya está leyendo: `jaravi run --agent <id> --task
+>   "..."` delega sin registrar nada y sin reiniciar.
 
 ## Instalación manual (dotnet tool global)
 

@@ -58,6 +58,28 @@ public class JsonAgentRegistryTests : IDisposable
         Assert.Contains("x", result.ProfileIds);
     }
 
+    [Fact]
+    public void Path_placeholders_are_expanded_when_the_registry_is_loaded()
+    {
+        // agents.json shipped with absolute paths from one machine, so on anyone
+        // else's every profile pointed at nothing and 'agents' showed a wall of
+        // "not installed". Expansion happens at load, once, so the PATH probe and
+        // the spawn can never disagree about what the command actually is.
+        File.WriteAllText(_file, """
+            { "agents": [ { "id": "portable", "command": "{home}/bin/tool",
+                            "args": ["--config", "{appData}/tool.json", "{task}"] } ] }
+            """);
+
+        var profile = JsonAgentRegistry.LoadFromFile(_file).Get("portable");
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        Assert.Equal($"{home}/bin/tool", profile.Command);
+        Assert.Contains(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), profile.Args[1]);
+        // Spawn-time placeholders must survive load untouched, or the task text
+        // would be substituted into nothing.
+        Assert.Equal("{task}", profile.Args[2]);
+    }
+
     public void Dispose()
     {
         try { File.Delete(_file); } catch { }

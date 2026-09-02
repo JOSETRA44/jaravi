@@ -4,14 +4,16 @@ tags: [jaravi, mcp, servidor, kestrel, tools, websocket]
 
 # Servidor MCP
 
-`Jaravi.McpServer` es el host Kestrel que expone el [[Motor (Engine)|Engine]] al exterior. Ofrece tres superficies de comunicación.
+`Jaravi.McpServer` es el host Kestrel que expone el [[Motor (Engine)|Engine]] al exterior. Ofrece tres superficies de comunicación **y**, desde v0.9.0, un [[CLI de Shell|CLI]] completo en el mismo binario para quien no puede llegar por MCP.
 
 ## Modos de operación
 
 - **`--stdio`**: MCP sobre stdin/stdout. Claude Code (u otro cliente MCP) lanza el servidor como hijo. Los logs van a stderr. Kestrel igualmente corre para el [[Dashboard]] (WebSocket + REST), usando puerto efímero si el 5210 está ocupado.
 - **HTTP** (por defecto): MCP sobre HTTP en `http://localhost:5210/mcp`.
 
-Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos.
+Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos. Eso es lo que permite que el [[CLI de Shell|CLI]] se **adjunte** a una instancia stdio y comparta sus sesiones.
+
+- **verbos de CLI** (`run`, `agents`, `doctor`…): ni MCP ni servidor; ver [[CLI de Shell]].
 
 ## Las 11 Tools MCP
 
@@ -78,4 +80,4 @@ El endpoint `/ws/events` emite JSON con discriminador `type`:
 - `logBatchEmitted` — lote de líneas de output
 - `sessionExited` — sesión terminada con código de salida
 
-Véase también: [[Operacion]], [[Perfiles de Agentes]], [[Brechas del Protocolo MCP]], [[Pruebas de Contrato MCP]], [[Adopcion por Agentes]]
+Véase también: [[Operacion]], [[Perfiles de Agentes]], [[Brechas del Protocolo MCP]], [[Pruebas de Contrato MCP]], [[Adopcion por Agentes]], [[CLI de Shell]]

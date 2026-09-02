@@ -15,10 +15,10 @@ Jaravi convierte un agente de IA de alto nivel (Claude Code, OpenCode, Copilot C
 |---|---|
 | `Jaravi.Core` | Dominio puro: modelos, eventos, puertos. Sin dependencias externas. |
 | `Jaravi.Engine` | [[Motor (Engine)|Motor]]: procesos, sesiones, event bus, ring buffer, Scope Gate, sanitizador ANSI. |
-| `Jaravi.McpServer` | [[Servidor MCP]]: host Kestrel con 11 tools MCP (incl. `run_agent`, `reload_agents`) + WebSocket + REST. |
+| `Jaravi.McpServer` | [[Servidor MCP]]: host Kestrel con 11 tools MCP + [[CLI de Shell|CLI]] + WebSocket + REST. |
 | `Jaravi.Dashboard` | [[Dashboard]] GUI WPF (MVVM) observadora vía HTTP/WebSocket. |
-| `Jaravi.Engine.Tests` | xUnit: 75 tests del motor, incluyendo E2E contra procesos reales. |
-| `Jaravi.McpServer.Tests` | xUnit: 32 [[Pruebas de Contrato MCP|tests de contrato]] sobre la superficie MCP publicada. |
+| `Jaravi.Engine.Tests` | xUnit: 76 tests del motor, incluyendo E2E contra procesos reales. |
+| `Jaravi.McpServer.Tests` | xUnit: 93 [[Pruebas de Contrato MCP|tests de contrato]] sobre la superficie MCP publicada, el [[CLI de Shell|CLI]] y el instalador. |
 
 ## Navegación rápida — arquitectura y motor
 
@@ -26,7 +26,9 @@ Jaravi convierte un agente de IA de alto nivel (Claude Code, OpenCode, Copilot C
 - [[Servidor MCP]] — Tools MCP, modos stdio y HTTP, agents.json
 - [[Brechas del Protocolo MCP]] — investigación de qué le faltaba a Jaravi como ciudadano MCP, y qué se aplicó
 - [[Pruebas de Contrato MCP]] — por qué la superficie MCP se prueba al nivel del cable, no del método
-- [[Adopcion por Agentes]] — por qué los agentes se negaban a usar Jaravi, y el prompt de auto-instalación
+- [[Adopcion por Agentes]] — por qué los agentes se negaban a usar Jaravi, y las instrucciones MCP del handshake
+- [[Autoconfiguracion]] — `jaravi-mcp install`: registro MCP + bloque en AGENTS.md, alias `jaravi`, portabilidad de agents.json
+- [[CLI de Shell]] — delegar sin MCP: los once verbos, adjuntarse vs. motor privado, códigos de salida
 - [[Control Center (Web)]] — dashboard web servido por Kestrel (interfaz por defecto)
 - [[Dashboard]] — GUI WPF de escritorio (cliente secundario)
 - [[Perfiles de Agentes]] — agents.json declarativo, lección closeStdin, hot-reload
