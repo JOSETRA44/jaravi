@@ -219,13 +219,19 @@ public static class McpConfigWriter
         root.ToJsonString(WriteOptions) + "\n";
 
     /// <summary>
-    /// Crude but only ever used to warn. A false positive ("//" inside a string)
-    /// costs one unnecessary note; a false negative costs the user their comments
-    /// with no warning, so this errs toward reporting.
+    /// Crude but only ever used to warn, so it errs toward reporting: a false
+    /// negative costs the user their comments silently. The one exception is a URL
+    /// scheme — every opencode.json carries a "$schema": "https://…" and warning
+    /// about it on literally every run would train the reader to ignore the notice.
     /// </summary>
-    private static bool HasComments(string? text) =>
-        text is not null && (text.Contains("//", StringComparison.Ordinal)
-                             || text.Contains("/*", StringComparison.Ordinal));
+    private static bool HasComments(string? text)
+    {
+        if (text is null) return false;
+        if (text.Contains("/*", StringComparison.Ordinal)) return true;
+
+        var withoutUrls = text.Replace("://", ":", StringComparison.Ordinal);
+        return withoutUrls.Contains("//", StringComparison.Ordinal);
+    }
 
     /// <summary>Span of the [mcp_servers.jaravi] table, or null when absent.</summary>
     private static (int Start, int End)? FindTomlTable(string text)

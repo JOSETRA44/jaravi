@@ -102,6 +102,19 @@ public class McpConfigMergeTests
     }
 
     [Fact]
+    public void A_schema_url_is_not_mistaken_for_a_comment()
+    {
+        // Every opencode.json carries "$schema": "https://…". Warning about lost
+        // comments on every single run would train the reader to ignore the notice.
+        var existing = """{ "$schema": "https://opencode.ai/config.json", "mcp": {} }""";
+
+        var result = McpConfigWriter.MergeJson(existing, Client("opencode"), "opencode.json");
+
+        Assert.True(result.Changed);
+        Assert.False(result.CommentsDropped);
+    }
+
+    [Fact]
     public void Removing_takes_out_jaravi_and_nothing_else()
     {
         var seeded = McpConfigWriter.MergeJson(
@@ -445,6 +458,43 @@ public class InstallDispatchTests
 
         Assert.Contains("emacs", ex.Message);
         Assert.Contains("opencode", ex.Message);
+    }
+
+    [Fact]
+    public void A_config_that_cannot_be_parsed_costs_that_client_and_no_other()
+    {
+        // Six clients aborting because one has a hand-broken config would be the
+        // worst behaviour for a command whose job is to leave the machine usable.
+        var repo = Directory.CreateTempSubdirectory("jaravi-install-test");
+        var previous = Directory.GetCurrentDirectory();
+        var output = new StringWriter();
+        var stdout = Console.Out;
+
+        try
+        {
+            Directory.SetCurrentDirectory(repo.FullName);
+            File.WriteAllText(Path.Combine(repo.FullName, "opencode.json"), "{ not json at all");
+            Console.SetOut(output);
+
+            var code = InstallCommand.Run(
+                new CliArgs(["install", "--scope", "project", "--client", "all", "--json", "--no-shim"]),
+                removing: false);
+
+            using var report = JsonDocument.Parse(output.ToString());
+            var changes = report.RootElement.GetProperty("changes").EnumerateArray().ToList();
+
+            Assert.Equal(CliRunner.ExitCode.Error, code);
+            Assert.Equal(1, report.RootElement.GetProperty("failed").GetInt32());
+            // Claude's .mcp.json sits beside the broken file and must still be written.
+            Assert.True(File.Exists(Path.Combine(repo.FullName, ".mcp.json")));
+            Assert.Contains(changes, c => c.GetProperty("status").GetString() == "registered");
+        }
+        finally
+        {
+            Console.SetOut(stdout);
+            Directory.SetCurrentDirectory(previous);
+            repo.Delete(recursive: true);
+        }
     }
 
     [Fact]

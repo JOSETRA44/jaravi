@@ -54,11 +54,36 @@ public static class InstallCommand
                 restart.Add(client.Id);
         }
 
+        // Opt-in, and only on install: taking the shipped registry means discarding
+        // whatever the user tuned, so it can never be a side effect of "register me
+        // with my clients". 'doctor' is what tells them the option exists.
+        if (!removing && args.Has("refresh-agents"))
+        {
+            changes.Add(Guarded("agents", "jaravi", Path.Combine(JaraviConfig.UserConfigDir, "agents.json"), () =>
+            {
+                if (dryRun)
+                    return new Change("agents", "jaravi", null, "would replace from the package");
+
+                JaraviConfig.RefreshUserAgents(JaraviConfig.UserConfigDir);
+                return new Change("agents", "jaravi",
+                    Path.Combine(JaraviConfig.UserConfigDir, "agents.json"),
+                    "replaced from the package", "previous file kept as agents.json.jaravi.bak");
+            }));
+        }
+
         if (!args.Has("no-shim"))
         {
-            var shim = removing ? CommandShim.Uninstall(dryRun) : CommandShim.Install(dryRun);
-            changes.Add(new Change("alias", CommandShim.AliasName, shim.Path, shim.Note));
+            changes.Add(Guarded("alias", CommandShim.AliasName, null, () =>
+            {
+                var shim = removing ? CommandShim.Uninstall(dryRun) : CommandShim.Install(dryRun);
+                return new Change("alias", CommandShim.AliasName, shim.Path, shim.Note);
+            }));
         }
+
+        // One decision, both output formats — the same rule the rest of the CLI
+        // follows, and the reason --json used to report success for failed work.
+        var failed = changes.Count(c => c.Status == "FAILED");
+        var outcome = failed == 0 ? CliRunner.ExitCode.Ok : CliRunner.ExitCode.Error;
 
         if (args.Has("json"))
         {
@@ -70,13 +95,14 @@ public static class InstallCommand
                 clients = clients.Select(c => c.Id),
                 changes,
                 restart,
+                failed,
             }, JaraviJson.Options));
-            return CliRunner.ExitCode.Ok;
+            return outcome;
         }
 
         if (!args.Has("quiet"))
             Report(changes, restart, scope, dryRun, removing, detectionNote);
-        return CliRunner.ExitCode.Ok;
+        return outcome;
     }
 
     // ---- selection ----------------------------------------------------------
@@ -117,14 +143,41 @@ public static class InstallCommand
     {
         var configPath = client.Resolve(root, userScope ? client.UserConfigRelative : client.ProjectConfigRelative);
         if (configPath is not null)
-            changes.Add(ApplyConfig(client, configPath, dryRun, removing));
+            changes.Add(Guarded("mcp", client.Id, configPath,
+                () => ApplyConfig(client, configPath, dryRun, removing)));
 
         if (args.Has("no-instructions")) return;
 
         var guidePath = client.Resolve(root,
             userScope ? client.UserInstructionsRelative : client.ProjectInstructionsRelative);
+        // Two clients can share one instruction file (AGENTS.md is both OpenCode's
+        // and Codex's), so it is written once and attributed to whoever got there first.
         if (guidePath is not null && !changes.Any(c => c.Kind == "guide" && c.Path == guidePath))
-            changes.Add(ApplyGuide(client, guidePath, dryRun, removing));
+            changes.Add(Guarded("guide", client.Id, guidePath,
+                () => ApplyGuide(client, guidePath, dryRun, removing)));
+    }
+
+    /// <summary>
+    /// One client's config is one unit of work, and it is allowed to fail on its
+    /// own. A locked file, a read-only home or a config someone hand-edited into
+    /// invalid JSON must cost that client and nothing else — six clients aborting
+    /// because the first one was busy would be the worst possible behaviour for a
+    /// command whose entire job is to leave the machine usable.
+    /// </summary>
+    private static Change Guarded(string kind, string clientId, string? path, Func<Change> apply)
+    {
+        try
+        {
+            return apply();
+        }
+        catch (JaraviException ex)
+        {
+            return new Change(kind, clientId, path, "FAILED", ex.Message);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new Change(kind, clientId, path, "FAILED", ex.Message);
+        }
     }
 
     private static Change ApplyConfig(McpClientDescriptor client, string path, bool dryRun, bool removing)
@@ -216,6 +269,12 @@ public static class InstallCommand
         }
 
         Console.Error.WriteLine();
+
+        var failed = changes.Where(c => c.Status == "FAILED").ToList();
+        if (failed.Count > 0)
+            Console.Error.WriteLine($"  {failed.Count} target(s) could not be written; the rest were."
+                + " Fix the cause above and re-run — install is idempotent, so it will"
+                + " only touch what is still missing.");
 
         if (removing)
         {

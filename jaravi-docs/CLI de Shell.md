@@ -47,6 +47,34 @@ necesita registro MCP, ni reinicio, ni servidor**.
 > arreglar una instalación rota no pueden exigir una instalación sana. Ver
 > [[Autoconfiguracion]].
 
+### Encadenar sin leer el intermedio (v0.11.0)
+
+Las instrucciones MCP llevan desde v0.8.0 diciéndole al agente que encadene con
+`inputFromSessionId`… y desde la shell eso era **inalcanzable**. Mismo defecto que
+"no existe un comando jaravi": la capacidad era real y estaba fuera de la
+superficie que el llamante miraba.
+
+```bash
+ID=$(jaravi spawn --agent codex --task "audita src/api" --quiet)
+jaravi await "$ID"
+jaravi run --agent claude --task "arregla lo que encontró" --input-from "$ID"
+```
+
+El motor inyecta un extracto **acotado** del resultado previo en el task del
+siguiente; el intermedio no pasa nunca por el que orquesta. `--input-kind
+summary|tail|errors` (por defecto `summary`, que es el acotado — poner `tail` por
+defecto reintroduciría la manguera que esto existe para evitar), `--input-tail N`,
+`--input-grep RE`. Y `--claims a;b` con `--on-conflict reject|queue` exponen el
+registro de reclamaciones, que también era solo-MCP.
+
+> [!warning] Un task multilínea rompe los perfiles `cmd`
+> `cmd.exe` deja de leer su línea de comandos en el primer salto de línea, así que
+> un perfil `.cmd`/`.bat` recibe el task cortado **y sale con exit 0**: éxito, a
+> ojos de cualquiera. Muerde justo aquí, porque el extracto inyectado es
+> multilínea. Desde v0.11.0 el motor lo detecta y escribe un `[jaravi] WARNING`
+> en el log de la sesión en vez de dejar que parezca que el sub-agente tenía poco
+> que decir. Los perfiles reales apuntan al ejecutable, no al shim, justo por esto.
+
 ### Adjuntarse o correr en privado
 
 La decisión de diseño que sostiene el resto ([[Arquitectura|IJaraviClient]] con
