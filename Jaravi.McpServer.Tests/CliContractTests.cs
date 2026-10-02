@@ -1,3 +1,5 @@
+using Jaravi.Core;
+using Jaravi.Core.Models;
 using Jaravi.McpServer.Cli;
 
 namespace Jaravi.McpServer.Tests;
@@ -86,6 +88,72 @@ public class CliArgsTests
         // A malformed --wait must not abort the delegation; the default is safe.
         Assert.Equal(90, new CliArgs(["run", "--wait", "soon"]).GetInt("wait", 90));
         Assert.Equal(30, new CliArgs(["run", "--wait", "30"]).GetInt("wait", 90));
+    }
+}
+
+/// <summary>
+/// Chaining and claims are the two engine features the MCP instructions tell an
+/// agent to use, and until now a shell-only caller could reach neither — the same
+/// defect that made "there is no jaravi command" a fair report.
+/// </summary>
+public class SpawnRequestFromArgsTests
+{
+    private static SpawnRequest Build(params string[] argv)
+    {
+        var request = CliRunner.BuildSpawnRequestForTest(new CliArgs(argv), @"C:\repo", out var error);
+        Assert.Null(error);
+        return request!;
+    }
+
+    [Fact]
+    public void Input_from_seeds_the_next_session_from_a_finished_one()
+    {
+        var request = Build("run", "--agent", "codex", "--task", "fix it", "--input-from", "abc123");
+
+        Assert.NotNull(request.InputFrom);
+        Assert.Equal("abc123", request.InputFrom!.SessionId);
+        // Summary is the default because it is the bounded one; defaulting to tail
+        // would quietly reintroduce the firehose this feature exists to avoid.
+        Assert.Equal(PipelineInputKind.Summary, request.InputFrom.Kind);
+    }
+
+    [Fact]
+    public void The_excerpt_can_be_narrowed_to_matching_tail_lines()
+    {
+        var request = Build("run", "--agent", "codex", "--task", "x",
+            "--input-from", "abc123", "--input-kind", "tail", "--input-tail", "12", "--input-grep", "error:");
+
+        Assert.Equal(PipelineInputKind.Tail, request.InputFrom!.Kind);
+        Assert.Equal(12, request.InputFrom.TailLines);
+        Assert.Equal("error:", request.InputFrom.Grep);
+    }
+
+    [Fact]
+    public void No_input_from_means_no_pipeline_at_all()
+    {
+        Assert.Null(Build("run", "--agent", "codex", "--task", "x").InputFrom);
+    }
+
+    [Fact]
+    public void Claims_and_conflict_policy_reach_the_engine()
+    {
+        var request = Build("spawn", "--agent", "codex", "--task", "x",
+            "--claims", "src/api; src/db", "--on-conflict", "queue");
+
+        Assert.Equal(["src/api", "src/db"], request.Claims);
+        Assert.Equal(ConflictPolicy.Queue, request.OnConflict);
+    }
+
+    [Fact]
+    public void A_mistyped_policy_is_refused_and_the_valid_values_named()
+    {
+        // Falling back to the default would let "--on-conflict quue" reject a spawn
+        // the caller believed was queued, with nothing said.
+        var ex = Assert.Throws<JaraviException>(
+            () => Build("run", "--agent", "codex", "--task", "x", "--on-conflict", "quue"));
+
+        Assert.Contains("--on-conflict", ex.Message);
+        Assert.Contains("queue", ex.Message);
     }
 }
 

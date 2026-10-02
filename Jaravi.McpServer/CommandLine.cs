@@ -83,6 +83,9 @@ public static class CommandLine
               a short Jaravi section to the instruction file it reads at startup, and
               installs a shorter 'jaravi' alias. --dry-run shows it without writing;
               --scope project keeps it to this repo; 'uninstall' reverses all of it.
+              --refresh-agents also takes this build's agents.json, keeping yours as
+              a .bak — your copy is seeded once and never updated otherwise, so
+              profile fixes shipped since then are sitting unused. 'doctor' says when.
 
         DELEGATE FROM A SHELL  (no MCP registration, no restart, no server needed)
           jaravi-mcp agents
@@ -106,6 +109,16 @@ public static class CommandLine
         sessions are the same sessions the boss agent and the Control Center see.
         With none running, 'run' starts a private engine for the duration of the
         command. --url <base> targets one explicitly; --no-attach forces private.
+
+        CHAIN AGENTS WITHOUT READING THE MIDDLE  (on 'run' and 'spawn')
+          --input-from <sessionId>    Seed this task with a finished session's result.
+                                      The engine injects a bounded excerpt, so the
+                                      intermediate output never reaches you.
+          --input-kind summary|tail|errors     (default summary)
+          --input-tail N              Lines when --input-kind tail (engine caps at 100).
+          --input-grep RE             Filter those lines.
+          --claims a;b                Paths this run owns; a conflicting spawn is refused.
+          --on-conflict reject|queue  Refuse, or park until the conflict clears.
 
         COMMON OPTIONS
           --json          Machine-readable output instead of text.

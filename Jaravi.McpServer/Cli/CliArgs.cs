@@ -18,7 +18,7 @@ public sealed class CliArgs
     private static readonly HashSet<string> KnownFlags = new(StringComparer.OrdinalIgnoreCase)
     {
         "json", "attended", "quiet", "no-attach", "stdio", "http",
-        "dry-run", "no-instructions", "no-shim",
+        "dry-run", "no-instructions", "no-shim", "refresh-agents",
     };
 
     public CliArgs(IReadOnlyList<string> args)

@@ -423,6 +423,24 @@ public static class CliRunner
                 + " profiles will fail to spawn. Install the CLI, fix the command in agents.json,"
                 + " or ignore it if you do not use that agent.");
 
+        // The user's agents.json is seeded once and never touched again, so every
+        // profile fix ever shipped is invisible to anyone who already ran Jaravi.
+        // Saying so is the whole fix: the file is theirs, and overwriting it behind
+        // their back would be worse than leaving it stale.
+        var drift = agentsFile is null
+            ? new JaraviConfig.AgentDrift([], [])
+            : JaraviConfig.CompareAgents(agentsFile, JaraviConfig.PackageAgentsFile);
+        if (drift.Any)
+        {
+            if (drift.Missing.Count > 0)
+                report.AppendLine($"  this build ships profiles your copy does not have: {string.Join(", ", drift.Missing)}");
+            if (drift.Divergent.Count > 0)
+                report.AppendLine($"  these differ from the shipped version: {string.Join(", ", drift.Divergent)}"
+                    + " (yours may be a deliberate edit, or a profile fixed upstream after you seeded it)");
+            report.AppendLine("  Take the shipped registry with: jaravi-mcp install --refresh-agents"
+                + " (your current file is kept as agents.json.jaravi.bak)");
+        }
+
         // Which MCP clients live on this machine, where each keeps its registry,
         // and whether Jaravi is in it. This is the block an agent needs in order to
         // configure itself; without it 'doctor' could say Jaravi was healthy while
@@ -456,6 +474,8 @@ public static class CliRunner
                 instances,
                 profiles = profiles.Select(p => new { p.Id, p.Command, installed = IsOnPath(p.Command) }),
                 uninstalledProfiles = missing,
+                agentsMissingFromUserCopy = drift.Missing,
+                agentsDivergentFromPackage = drift.Divergent,
                 clients,
                 problems,
             });
@@ -469,6 +489,14 @@ public static class CliRunner
     }
 
     // ---- helpers ------------------------------------------------------------
+
+    /// <summary>
+    /// Test seam. Argument-to-request mapping is where flags go silently missing
+    /// — chaining and claims were absent here for a whole release — and running
+    /// a real sub-agent is far too blunt an instrument to catch that.
+    /// </summary>
+    internal static SpawnRequest? BuildSpawnRequestForTest(CliArgs args, string workdir, out string? error) =>
+        BuildSpawnRequest(args, workdir, out error);
 
     private static SpawnRequest? BuildSpawnRequest(CliArgs args, string workdir, out string? error)
     {
@@ -506,7 +534,49 @@ public static class CliRunner
             Unattended = !args.Has("attended"),
             TimeoutSec = args.GetInt("timeout", 1800),
             Labels = SplitList(args.Get("labels")),
+            // Chaining and the claim registry existed only over MCP, which made the
+            // instructions wrong for half their readers: they tell an agent to chain
+            // with inputFromSessionId, and a shell-only agent could not. Same defect
+            // class as having no CLI at all — the capability was real and off the
+            // surface the caller was looking at.
+            InputFrom = BuildPipelineInput(args),
+            Claims = SplitList(args.Get("claims")),
+            OnConflict = ParseEnum<ConflictPolicy>(args.Get("on-conflict"), ConflictPolicy.Reject, "--on-conflict"),
         };
+    }
+
+    /// <summary>
+    /// The engine feeds a bounded excerpt of a finished session into the next one,
+    /// so the intermediate output never passes through the caller. That is the
+    /// whole point, so the CLI must not make the caller paste it by hand.
+    /// </summary>
+    private static PipelineInput? BuildPipelineInput(CliArgs args)
+    {
+        var sourceId = args.GetAny("input-from", "input-from-session");
+        if (string.IsNullOrWhiteSpace(sourceId)) return null;
+
+        return new PipelineInput
+        {
+            SessionId = sourceId,
+            Kind = ParseEnum<PipelineInputKind>(args.Get("input-kind"), PipelineInputKind.Summary, "--input-kind"),
+            TailLines = args.GetInt("input-tail", 40),
+            Grep = args.Get("input-grep"),
+        };
+    }
+
+    /// <summary>
+    /// Names the valid values on a bad one. Silently falling back to the default
+    /// would let "--on-conflict quue" queue nothing and reject a spawn the caller
+    /// believed was parked.
+    /// </summary>
+    private static T ParseEnum<T>(string? value, T fallback, string option) where T : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        if (Enum.TryParse<T>(value, ignoreCase: true, out var parsed)) return parsed;
+
+        throw new JaraviException(
+            $"{option} must be one of: {string.Join(", ", Enum.GetNames<T>().Select(n => n.ToLowerInvariant()))}"
+            + $" (got '{value}').");
     }
 
     private static IReadOnlyList<string> SplitList(string? value) =>
