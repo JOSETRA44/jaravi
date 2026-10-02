@@ -223,6 +223,7 @@ public sealed class SessionManager(
         session.StartedAt = DateTimeOffset.UtcNow;
         Transition(session, SessionState.Running, null);
         AppendSystemLog(session, $"spawned pid {session.Process.Pid}: {spec.Command} ({session.Profile.Id})");
+        WarnIfMultilineTaskWillBeTruncated(session, spec);
 
         eventBus.Publish(new SessionStarted
         {
@@ -522,6 +523,36 @@ public sealed class SessionManager(
             ExitCode = snapshot.ExitCode,
             DurationSeconds = Math.Round(((snapshot.ExitedAt ?? DateTimeOffset.UtcNow) - start).TotalSeconds, 1),
         });
+    }
+
+    /// <summary>
+    /// The most dishonest failure this engine can produce, made visible.
+    ///
+    /// A cmd.exe command line ends at the first newline, so a multi-line task
+    /// handed to a .cmd/.bat profile runs only up to that point — and then exits 0.
+    /// The caller sees success, short output and no error at all. It bites exactly
+    /// where it is least expected: chaining injects a multi-line excerpt, so the
+    /// feature appears to do nothing rather than to fail.
+    ///
+    /// Not an error, because the profile may well be fine with it; a line in the
+    /// session log, so the missing output has a stated cause instead of looking
+    /// like the sub-agent simply had little to say.
+    /// </summary>
+    private void WarnIfMultilineTaskWillBeTruncated(Session session, ProcessStartSpec spec)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        if (!spec.Args.Any(a => a.Contains('\n'))) return;
+
+        var command = Path.GetFileName(spec.Command);
+        var fragile = command.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)
+                   || command.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)
+                   || command.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase);
+        if (!fragile) return;
+
+        AppendSystemLog(session,
+            $"WARNING: the task spans several lines and '{command}' is a cmd shim, which stops reading "
+            + "at the first newline. Output may be truncated while the process still exits 0. "
+            + "Point this profile at the real executable (see agents.json) if the result looks short.");
     }
 
     private void AppendSystemLog(Session session, string message)

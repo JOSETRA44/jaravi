@@ -75,6 +75,35 @@ public class SessionManagerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_multiline_task_on_a_cmd_profile_is_flagged_rather_than_silently_truncated()
+    {
+        // cmd.exe stops reading its command line at the first newline, so the run
+        // produces short output and still exits 0 — success, to every caller. It
+        // bites hardest where it is least expected: chaining injects a multi-line
+        // excerpt, so the feature looks inert instead of broken.
+        var snapshot = await _manager.SpawnAsync(Request("echo", task: "primera linea\nsegunda linea"));
+        await _manager.AwaitSessionAsync(snapshot.SessionId, AwaitTimeout);
+
+        var lines = _logStore.Read(snapshot.SessionId, new LogQuery { MaxLines = 50 })
+            .Select(e => e.Text).ToList();
+
+        Assert.Contains(lines, l => l.Contains("WARNING") && l.Contains("newline"));
+    }
+
+    [Fact]
+    public async Task A_single_line_task_produces_no_truncation_warning()
+    {
+        // The warning has to stay rare, or it becomes noise nobody reads.
+        var snapshot = await _manager.SpawnAsync(Request("echo", task: "una sola linea"));
+        await _manager.AwaitSessionAsync(snapshot.SessionId, AwaitTimeout);
+
+        var lines = _logStore.Read(snapshot.SessionId, new LogQuery { MaxLines = 50 })
+            .Select(e => e.Text).ToList();
+
+        Assert.DoesNotContain(lines, l => l.Contains("WARNING"));
+    }
+
+    [Fact]
     public async Task Nonzero_exit_code_marks_session_failed()
     {
         var snapshot = await _manager.SpawnAsync(Request("fail"));
