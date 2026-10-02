@@ -64,12 +64,43 @@ public sealed class InstanceRegistry
         return live.OrderBy(i => i.StartedAt).ToList();
     }
 
+    /// <summary>
+    /// A process with that id exists AND it is a Jaravi.
+    ///
+    /// Checking only for existence is not enough, and the failure was observed:
+    /// an instance from three days earlier was still being advertised at its old
+    /// port because an unrelated python process had since inherited its pid.
+    /// Consumers of /api/instances — the Control Center, the CLI's attach ranking —
+    /// were pointed at a server that had not existed for days.
+    ///
+    /// The name check closes almost all of that: pid reuse is common, but reuse by
+    /// a process that is also called jaravi-mcp means a real Jaravi is running.
+    /// It stays a heuristic, which is why the CLI still probes /healthz before
+    /// trusting an entry; this just stops the lie from being served in the first place.
+    /// </summary>
     private static bool IsAlive(int pid)
     {
         if (pid == Environment.ProcessId) return true;
-        try { using var _ = Process.GetProcessById(pid); return true; }
-        catch (ArgumentException) { return false; } // not running
-        catch (InvalidOperationException) { return false; }
+
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return string.Equals(process.ProcessName, JaraviProcessName, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException) { return false; }         // not running
+        catch (InvalidOperationException) { return false; } // exited between the calls
+    }
+
+    /// <summary>
+    /// Taken from the running process rather than hardcoded, so it stays right
+    /// whether Jaravi runs as the installed tool, from `dotnet run`, or renamed.
+    /// </summary>
+    private static string JaraviProcessName { get; } = ResolveProcessName();
+
+    private static string ResolveProcessName()
+    {
+        try { using var self = Process.GetCurrentProcess(); return self.ProcessName; }
+        catch (InvalidOperationException) { return "jaravi-mcp"; }
     }
 
     private static void TryDelete(string file)
