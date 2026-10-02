@@ -1,0 +1,145 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Tokens semanticos.
+
+   Una sola escala, dos temas. Los componentes nunca escriben un color literal:
+   piden --surface, --fg-muted, --accent-ink. Eso es lo que permite que el modo
+   claro no sea una inversion mecanica del oscuro sino una paleta propia, con
+   sus contrastes verificados.
+
+   Tesis visual: una sala de control. Negro calido (no azulado), un unico
+   acento ambar de fosforo, y semantica de terminal para los estados.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Superficies — de la mas hundida a la mas elevada */
+  --bg:          #0B0A09;
+  --bg-well:     #080807;
+  --surface:     #121110;
+  --surface-2:   #191716;
+  --surface-3:   #221F1D;
+
+  /* Tinta */
+  --fg:          #F2EFEA;
+  --fg-muted:    #A79E93;
+  --fg-faint:    #837A6F;   /* 5.0:1 sobre --bg-well: legible tambien en los logs */
+
+  /* Lineas */
+  --border:        rgb(242 239 234 / 0.10);
+  --border-strong: rgb(242 239 234 / 0.19);
+
+  /* Acento unico. Ambar de fosforo: calido, y lo contrario del indigo
+     por defecto de todo SaaS. */
+  --accent:       #E2A03F;
+  --accent-ink:   #E9AE55;   /* acento usado como texto */
+  --accent-hover: #F3B85C;
+  --accent-fg:    #1A1206;   /* tinta sobre relleno de acento */
+  --accent-soft:  rgb(226 160 63 / 0.13);
+  --accent-line:  rgb(226 160 63 / 0.34);
+
+  /* Semantica de terminal. Desaturada a proposito: informa, no compite. */
+  --ok:       #8FB472;
+  --ok-soft:  rgb(143 180 114 / 0.14);
+  --warn:     #D8A657;
+  --warn-soft:rgb(216 166 87 / 0.14);
+  --bad:      #D3775F;
+  --bad-soft: rgb(211 119 95 / 0.14);
+  --info:     #7FA6C9;
+  --info-soft:rgb(127 166 201 / 0.14);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --shadow-lg: 0 32px 64px -24px rgb(0 0 0 / 0.8);
+
+  --glow: 0 0 0 1px var(--accent-line), 0 8px 30px -12px rgb(226 160 63 / 0.35);
+}
+
+:root[data-theme='light'] {
+  --bg:          #FAF8F4;
+  --bg-well:     #F1EDE6;
+  --surface:     #FFFFFF;
+  --surface-2:   #F7F4EF;
+  --surface-3:   #EFEAE1;
+
+  --fg:          #191512;
+  --fg-muted:    #5E564D;
+  --fg-faint:    #6B6259;   /* 4.9:1 sobre --bg-well */
+
+  --border:        rgb(25 21 18 / 0.12);
+  --border-strong: rgb(25 21 18 / 0.22);
+
+  --accent:       #C07A16;
+  --accent-ink:   #8A5510;   /* 6.2:1 sobre --bg: legible como texto */
+  --accent-hover: #D18E2B;   /* al pasar el raton aclara: la tinta oscura del boton sigue legible */
+  --accent-fg:    #1F1503;   /* tinta oscura sobre ambar, igual que en el tema oscuro: 5.2:1 */
+  --accent-soft:  rgb(192 122 22 / 0.12);
+  --accent-line:  rgb(192 122 22 / 0.32);
+
+  --ok:       #4B7434;
+  --ok-soft:  rgb(75 116 52 / 0.12);
+  --warn:     #96650C;
+  --warn-soft:rgb(150 101 12 / 0.13);
+  --bad:      #A8412A;
+  --bad-soft: rgb(168 65 42 / 0.11);
+  --info:     #2C5F87;
+  --info-soft:rgb(44 95 135 / 0.11);
+
+  --shadow-sm: 0 1px 2px rgb(25 21 18 / 0.07);
+  --shadow-md: 0 12px 28px -14px rgb(25 21 18 / 0.22);
+  --shadow-lg: 0 30px 60px -28px rgb(25 21 18 / 0.28);
+
+  --glow: 0 0 0 1px var(--accent-line), 0 8px 24px -14px rgb(192 122 22 / 0.4);
+}
+
+:root {
+  /* Tipografia. Space Grotesk manda en los titulares (caracter); Inter lleva
+     la prosa larga de la documentacion (legibilidad); JetBrains Mono todo lo
+     que es literal de terminal. */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;  /* 11 — solo etiquetas en versalitas */
+  --text-xs:  0.75rem;    /* 12 */
+  --text-sm:  0.8125rem;  /* 13 */
+  --text-base:0.9375rem;  /* 15 */
+  --text-md:  1rem;       /* 16 — prosa */
+  --text-lg:  1.125rem;   /* 18 */
+  --text-xl:  1.375rem;   /* 22 */
+  --text-2xl: 1.75rem;    /* 28 */
+  --display-sm: clamp(1.75rem, 1.3rem + 1.9vw, 2.35rem);
+  --display-md: clamp(2.1rem, 1.4rem + 2.8vw, 3.1rem);
+  --display-lg: clamp(2.6rem, 1.5rem + 4.6vw, 4.6rem);
+
+  /* Ritmo de 4px */
+  --sp-1: 0.25rem;  --sp-2: 0.5rem;   --sp-3: 0.75rem;  --sp-4: 1rem;
+  --sp-5: 1.5rem;   --sp-6: 2rem;     --sp-7: 2.5rem;   --sp-8: 3rem;
+  --sp-9: 4rem;     --sp-10: 5.5rem;  --sp-11: 7rem;
+
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius:    12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  --measure: 78rem;      /* ancho de la rejilla general */
+  --measure-prose: 46rem;/* 65-75 caracteres de prosa */
+  --gutter: 1.25rem;
+
+  --header-h: 60px;
+
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-header: 40;
+  --z-drawer: 60;
+  --z-modal: 80;
+  --z-toast: 100;
+}
+
+@media (min-width: 40em) { :root { --gutter: 2rem; } }
+@media (min-width: 64em) { :root { --gutter: 3rem; --header-h: 64px; } }

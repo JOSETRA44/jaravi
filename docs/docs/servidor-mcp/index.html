@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servidor MCP · Documentación de Jaravi</title>
+<meta name="description" content="Las cinco superficies del protocolo que cubre Jaravi.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0A09">
+
+<link rel="canonical" href="https://josetra44.github.io/jaravi/docs/servidor-mcp">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Jaravi">
+<meta property="og:title" content="Servidor MCP · Documentación de Jaravi">
+<meta property="og:description" content="Las cinco superficies del protocolo que cubre Jaravi.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0A09'/%3E%3Cpath d='M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='11' r='2.1' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='18' r='2.1' fill='%23F4F1EC' fill-opacity='.5'/%3E%3Ccircle cx='20.6' cy='25' r='2.1' fill='%23F4F1EC' fill-opacity='.22'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Antes de pintar: el tema elegido gana al del sistema, y ninguno de los dos
+  // puede provocar un flash de la paleta contraria.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jaravi-theme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* almacenamiento bloqueado: se queda en dark */ }
+  })();
+</script>
+  <script type="module" crossorigin src="/jaravi/assets/index.CtTeO49P.js"></script>
+  <link rel="stylesheet" crossorigin href="/jaravi/assets/style.CapeLkiA.css">
+</head>
+<body>
+<div id="root"><a class="skip-link" href="#contenido">Saltar al contenido</a><div class="aurora" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div><div class="shell"><header class="masthead" data-stuck="false"><div class="masthead__inner"><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span><span class="brand__version">v<!-- -->0.11.0</span></a><nav class="masthead__nav" aria-label="Principal"><a class="nav-link" href="/docs" data-discover="true">Documentación</a><a class="nav-link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a><a class="nav-link" href="/docs/cli" data-discover="true">CLI</a><a class="nav-link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></nav><div class="masthead__actions"><button type="button" class="search-trigger"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg><span class="search-trigger__label">Buscar…</span><kbd>Ctrl K</kbd></button><button type="button" class="icon-btn search-trigger-compact" aria-label="Buscar en la documentación"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg></button><button type="button" class="icon-btn" aria-label="Cambiar a tema claro"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button><a class="icon-btn" href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer" aria-label="Jaravi en GitHub"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.7.4-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"></path></svg></a><button type="button" class="icon-btn masthead__burger" aria-expanded="false" aria-label="Abrir el menú"><svg class="" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div></div></header><main class="shell__main" id="contenido"><div class="docs"><aside class="docs__aside"><nav aria-label="Documentación"><div class="sidebar__section"><h2 class="sidebar__heading">Empezar</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs" data-discover="true">Introducción</a></li><li><a class="sidebar__link" href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a class="sidebar__link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a class="sidebar__link" href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Conceptos</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/arquitectura" data-discover="true">Arquitectura</a></li><li><a class="sidebar__link" href="/docs/motor" data-discover="true">Motor (Engine)</a></li><li><a class="sidebar__link" aria-current="page" href="/docs/servidor-mcp" data-discover="true">Servidor MCP</a></li><li><a class="sidebar__link" href="/docs/operacion" data-discover="true">Modos de operación</a></li><li><a class="sidebar__link" href="/docs/garantias" data-discover="true">Garantías y límites</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Guías</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/delegar" data-discover="true">Delegar trabajo</a></li><li><a class="sidebar__link" href="/docs/pipelines" data-discover="true">Encadenar agentes</a></li><li><a class="sidebar__link" href="/docs/claims" data-discover="true">Claims y colas</a></li><li><a class="sidebar__link" href="/docs/agentes" data-discover="true">Catálogo de agentes</a></li><li><a class="sidebar__link" href="/docs/perfiles" data-discover="true">Perfiles (agents.json)</a></li><li><a class="sidebar__link" href="/docs/control-center" data-discover="true">Control Center</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Referencia</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/cli" data-discover="true">CLI</a></li><li><a class="sidebar__link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a class="sidebar__link" href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a class="sidebar__link" href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a class="sidebar__link" href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Notas de ingeniería</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a class="sidebar__link" href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a class="sidebar__link" href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a class="sidebar__link" href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></nav></aside><div class="docs__mobilebar"><button type="button" class="btn btn--ghost btn--sm"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Índice</button><span class="docs__mobilebar-current">Servidor MCP</span></div><article class="docs__main"><header class="doc-head"><p class="doc-head__crumbs"><a href="/docs" data-discover="true">Docs</a><span aria-hidden="true">/</span><span>Conceptos</span></p><h1 class="doc-head__title">Servidor MCP</h1><p class="doc-head__summary">Las cinco superficies del protocolo que cubre Jaravi.</p></header><div class="doc-body prose" data-doc-slug="servidor-mcp"><p><code>Jaravi.McpServer</code> es el host Kestrel que expone el <a href="/docs/motor">Engine</a> al exterior. Ofrece tres superficies de comunicación <strong>y</strong>, desde v0.9.0, un <a href="/docs/cli">CLI</a> completo en el mismo binario para quien no puede llegar por MCP.</p>
+<h2 id="modos-de-operacion" tabindex="-1">Modos de operación <a class="heading-anchor" href="#modos-de-operacion">#</a></h2>
+<ul>
+<li><strong><code>--stdio</code></strong>: MCP sobre stdin/stdout. Claude Code (u otro cliente MCP) lanza el servidor como hijo. Los logs van a stderr. Kestrel igualmente corre para el <a href="/docs/control-center">Control Center</a> (WebSocket + REST), usando puerto efímero si el 5210 está ocupado.</li>
+<li><strong>HTTP</strong> (por defecto): MCP sobre HTTP en <code>http://localhost:5210/mcp</code>.</li>
+</ul>
+<p>Ambos modos coexisten: en stdio, el WebSocket y REST siguen activos. Eso es lo que permite que el <a href="/docs/cli">CLI</a> se <strong>adjunte</strong> a una instancia stdio y comparta sus sesiones.</p>
+<ul>
+<li><strong>verbos de CLI</strong> (<code>run</code>, <code>agents</code>, <code>doctor</code>…): ni MCP ni servidor; ver <a href="/docs/cli">CLI</a>.</li>
+</ul>
+<h2 id="las-11-tools-mcp" tabindex="-1">Las 11 Tools MCP <a class="heading-anchor" href="#las-11-tools-mcp">#</a></h2>
+<div class="table-scroll"><table><thead>
+<tr>
+<th>Tool</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list_agents</code></td>
+<td>Lista los perfiles de subagentes disponibles</td>
+</tr>
+<tr>
+<td><code>reload_agents</code></td>
+<td><strong>v0.3.2</strong>: re-lee <code>agents.json</code> en vivo — agrega/edita agentes sin reiniciar el servidor. Ver <a href="/docs/agentes">Catálogo de agentes</a></td>
+</tr>
+<tr>
+<td><code>spawn_agent</code></td>
+<td>Lanza un subagente; devuelve <code>sessionId</code> inmediatamente</td>
+</tr>
+<tr>
+<td><code>run_agent</code></td>
+<td><strong>v0.3</strong>: spawn + await + summary en una sola llamada — la vía token-eficiente para delegar-y-recoger</td>
+</tr>
+<tr>
+<td><code>send_input</code></td>
+<td>Envía texto a stdin y/o teclas simbólicas (PTY)</td>
+</tr>
+<tr>
+<td><code>get_status</code></td>
+<td>Estado compacto: estado, uptime, exit code, últimas 5 líneas</td>
+</tr>
+<tr>
+<td><code>list_sessions</code></td>
+<td>Todas las sesiones con su estado actual (incluye <code>queuedBehind</code> — v0.3.1)</td>
+</tr>
+<tr>
+<td><code>read_output</code></td>
+<td>Output acotado (máx. 500 líneas server-side) con <code>tail</code>, <code>grep</code>, <code>sinceSeq</code></td>
+</tr>
+<tr>
+<td><code>await_session</code></td>
+<td>Bloquea hasta que la sesión termine o necesite input</td>
+</tr>
+<tr>
+<td><code>get_summary</code></td>
+<td>Digest compacto: exit code, duración, errores extraídos</td>
+</tr>
+<tr>
+<td><code>kill_agent</code></td>
+<td>Mata todo el árbol de procesos de una sesión</td>
+</tr>
+</tbody>
+</table></div><aside class="callout callout--warning" data-callout="warning">
+<p class="callout__title">read_output tiene un hard cap de 500 líneas</p>
+<p>El parámetro <code>maxLines</code> está limitado por <code>Engine:MaxReadLines</code> (500). El agente jefe nunca puede inundar su contexto.</p>
+</aside>
+<h2 id="ciudadania-mcp-completa-v0-6-0" tabindex="-1">Ciudadanía MCP completa (v0.6.0) <a class="heading-anchor" href="#ciudadania-mcp-completa-v0-6-0">#</a></h2>
+<p>Tras un ciclo de feedback de un consumidor externo (ver <a href="/docs/brechas-mcp">Brechas del protocolo MCP</a>), las 11 tools llevan <strong>anotaciones</strong> (<code>readOnlyHint</code>/<code>destructiveHint</code>/<code>idempotentHint</code>/<code>openWorldHint</code>) para que cualquier cliente sepa cuáles son seguras sin preguntar — <code>kill_agent</code> es la única marcada <code>destructiveHint:true</code>. <code>run_agent</code> y <code>await_session</code> reportan <strong>progreso real</strong> cada 5s mientras esperan (<code>IProgress&lt;ProgressNotificationValue&gt;</code>, no-op si el cliente no pidió progreso vía <code>_meta.progressToken</code>) — verificado en vivo con 8 notificaciones reales fluyendo durante una espera de 30s. <code>run_agent</code> también mata la sesión si el propio cliente cancela la llamada (<code>notifications/cancelled</code>), evitando huérfanos — aunque el SDK preview no propaga esa cancelación en modo stdio (ver la nota de brechas para el detalle).</p>
+<h2 id="orquestacion-avanzada-en-spawn-agent-v2" tabindex="-1">Orquestación avanzada en <code>spawn_agent</code> (v2) <a class="heading-anchor" href="#orquestacion-avanzada-en-spawn-agent-v2">#</a></h2>
+<ul>
+<li><strong>Pipelines</strong>: <code>inputFromSessionId</code> + <code>inputKind</code> (<code>summary</code>|<code>tail</code>|<code>errors</code>) —
+el <a href="/docs/motor">motor</a> inyecta el resultado de una sesión <strong>terminada</strong>
+en el task de la nueva. Parámetros extra: <code>inputTailLines</code> (cap 100), <code>inputGrep</code>.</li>
+<li><strong>Claims</strong>: <code>claims: [&quot;src/Auth/**&quot;]</code> reclama rutas en exclusiva;
+<code>onConflict: &quot;reject&quot;</code> (default) falla con la sesión en conflicto,
+<code>onConflict: &quot;queue&quot;</code> deja la sesión en estado <code>Queued</code> y el motor la arranca
+solo cuando el claim se libera. La respuesta incluye <code>queuedBehind</code>.</li>
+</ul>
+<aside class="callout callout--note" data-callout="note">
+<p class="callout__title">La sesión origen de un pipeline debe estar terminada</p>
+<p>Su output es inmutable en estado terminal — eso hace la inyección determinista.</p>
+</aside>
+<h2 id="endpoints" tabindex="-1">Endpoints <a class="heading-anchor" href="#endpoints">#</a></h2>
+<div class="table-scroll"><table><thead>
+<tr>
+<th>Ruta</th>
+<th>Propósito</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /mcp</code></td>
+<td>Endpoint MCP (modo HTTP)</td>
+</tr>
+<tr>
+<td><code>WS /ws/events</code></td>
+<td>Stream JSON polimórfico de eventos (<code>SessionStarted</code>, <code>SessionStateChanged</code>, <code>LogBatchEmitted</code>, <code>SessionExited</code>)</td>
+</tr>
+<tr>
+<td><code>GET /api/agents</code></td>
+<td>Lista de perfiles</td>
+</tr>
+<tr>
+<td><code>GET /api/sessions</code></td>
+<td>Lista de sesiones</td>
+</tr>
+<tr>
+<td><code>GET /api/sessions/{id}</code></td>
+<td>Snapshot de una sesión</td>
+</tr>
+<tr>
+<td><code>GET /api/sessions/{id}/logs</code></td>
+<td>Logs paginados</td>
+</tr>
+<tr>
+<td><code>GET /api/sessions/{id}/summary</code></td>
+<td>Resumen compacto</td>
+</tr>
+<tr>
+<td><code>POST /api/sessions</code></td>
+<td>Crear sesión (spawn)</td>
+</tr>
+<tr>
+<td><code>POST /api/sessions/{id}/kill</code></td>
+<td>Matar sesión</td>
+</tr>
+<tr>
+<td><code>POST /api/sessions/{id}/input</code></td>
+<td>Enviar input</td>
+</tr>
+<tr>
+<td><code>GET /</code></td>
+<td><a href="/docs/control-center">Control Center</a> — dashboard web embebido</td>
+</tr>
+<tr>
+<td><code>GET /swagger</code></td>
+<td>UI de OpenAPI (solo modo HTTP) — v0.5.0</td>
+</tr>
+<tr>
+<td><code>GET /swagger/v1/swagger.json</code></td>
+<td>Documento OpenAPI de la REST, para scripting sin JSON-RPC</td>
+</tr>
+<tr>
+<td><code>GET /api/instances</code></td>
+<td>Instancias vivas de jaravi-mcp (multi-repo, poda PIDs muertos)</td>
+</tr>
+<tr>
+<td><code>GET /healthz</code></td>
+<td>Health check</td>
+</tr>
+</tbody>
+</table></div><h2 id="eventos-websocket" tabindex="-1">Eventos WebSocket <a class="heading-anchor" href="#eventos-websocket">#</a></h2>
+<p>El endpoint <code>/ws/events</code> emite JSON con discriminador <code>type</code>:</p>
+<ul>
+<li><code>sessionStarted</code> — nueva sesión creada</li>
+<li><code>sessionStateChanged</code> — transición de estado</li>
+<li><code>logBatchEmitted</code> — lote de líneas de output</li>
+<li><code>sessionExited</code> — sesión terminada con código de salida</li>
+</ul>
+<p>Véase también: <a href="/docs/operacion">Modos de operación</a>, <a href="/docs/perfiles">Perfiles (agents.json)</a>, <a href="/docs/brechas-mcp">Brechas del protocolo MCP</a>, <a href="/docs/pruebas-de-contrato">Pruebas de contrato</a>, <a href="/docs/adopcion-por-agentes">Adopción por agentes</a>, <a href="/docs/cli">CLI</a></p>
+</div><nav class="pager" aria-label="Páginas contiguas"><a class="pager__link pager__link--prev" href="/docs/motor" data-discover="true"><span class="pager__kicker"><svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H6m5 5-5-5 5-5"></path></svg> Anterior</span><span class="pager__title">Motor (Engine)</span></a><a class="pager__link pager__link--next" href="/docs/operacion" data-discover="true"><span class="pager__kicker">Siguiente <svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg></span><span class="pager__title">Modos de operación</span></a></nav></article><nav class="docs__toc" aria-label="En esta página"><p class="toc__heading">En esta página</p><ul class="toc__list"><li><a class="toc__link" href="#modos-de-operacion" data-level="2" data-active="true">Modos de operación</a></li><li><a class="toc__link" href="#las-11-tools-mcp" data-level="2" data-active="false">Las 11 Tools MCP</a></li><li><a class="toc__link" href="#ciudadania-mcp-completa-v0-6-0" data-level="2" data-active="false">Ciudadanía MCP completa (v0.6.0)</a></li><li><a class="toc__link" href="#orquestacion-avanzada-en-spawn-agent-v2" data-level="2" data-active="false">Orquestación avanzada en spawn_agent (v2)</a></li><li><a class="toc__link" href="#endpoints" data-level="2" data-active="false">Endpoints</a></li><li><a class="toc__link" href="#eventos-websocket" data-level="2" data-active="false">Eventos WebSocket</a></li></ul></nav></div></main><footer class="footer"><div class="wrap"><div class="footer__grid"><div><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span></a><p class="footer__note">Orquestación determinista de sub-agentes CLI. El firehose entra en el motor; del motor solo sale un resumen acotado.</p></div><div><h2 class="footer__title">Empezar</h2><ul class="footer__list"><li><a href="/docs" data-discover="true">Introducción</a></li><li><a href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div><h2 class="footer__title">Referencia</h2><ul class="footer__list"><li><a href="/docs/cli" data-discover="true">CLI</a></li><li><a href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div><h2 class="footer__title">Notas de ingeniería</h2><ul class="footer__list"><li><a href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></div><div class="footer__bottom"><span>© <!-- -->2026<!-- --> Jaravi · Licencia <!-- -->MIT</span><a href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer">Código fuente</a><a href="https://github.com/JOSETRA44/jaravi/issues" target="_blank" rel="noopener noreferrer">Incidencias</a><a href="https://www.nuget.org/packages/Jaravi.McpServer" target="_blank" rel="noopener noreferrer">NuGet</a><a href="/jaravi/jaravi.pdf">Paper (PDF)</a><span style="margin-left:auto">.NET 8<!-- --> · v<!-- -->0.11.0</span></div></div></footer></div></div>
+</body>
+</html>

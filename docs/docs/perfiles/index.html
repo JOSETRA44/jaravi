@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfiles (agents.json) · Documentación de Jaravi</title>
+<meta name="description" content="Añadir un CLI nuevo sin tocar código.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0A09">
+
+<link rel="canonical" href="https://josetra44.github.io/jaravi/docs/perfiles">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Jaravi">
+<meta property="og:title" content="Perfiles (agents.json) · Documentación de Jaravi">
+<meta property="og:description" content="Añadir un CLI nuevo sin tocar código.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0A09'/%3E%3Cpath d='M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='11' r='2.1' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='18' r='2.1' fill='%23F4F1EC' fill-opacity='.5'/%3E%3Ccircle cx='20.6' cy='25' r='2.1' fill='%23F4F1EC' fill-opacity='.22'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Antes de pintar: el tema elegido gana al del sistema, y ninguno de los dos
+  // puede provocar un flash de la paleta contraria.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jaravi-theme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* almacenamiento bloqueado: se queda en dark */ }
+  })();
+</script>
+  <script type="module" crossorigin src="/jaravi/assets/index.CtTeO49P.js"></script>
+  <link rel="stylesheet" crossorigin href="/jaravi/assets/style.CapeLkiA.css">
+</head>
+<body>
+<div id="root"><a class="skip-link" href="#contenido">Saltar al contenido</a><div class="aurora" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div><div class="shell"><header class="masthead" data-stuck="false"><div class="masthead__inner"><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span><span class="brand__version">v<!-- -->0.11.0</span></a><nav class="masthead__nav" aria-label="Principal"><a class="nav-link" href="/docs" data-discover="true">Documentación</a><a class="nav-link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a><a class="nav-link" href="/docs/cli" data-discover="true">CLI</a><a class="nav-link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></nav><div class="masthead__actions"><button type="button" class="search-trigger"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg><span class="search-trigger__label">Buscar…</span><kbd>Ctrl K</kbd></button><button type="button" class="icon-btn search-trigger-compact" aria-label="Buscar en la documentación"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg></button><button type="button" class="icon-btn" aria-label="Cambiar a tema claro"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button><a class="icon-btn" href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer" aria-label="Jaravi en GitHub"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.7.4-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"></path></svg></a><button type="button" class="icon-btn masthead__burger" aria-expanded="false" aria-label="Abrir el menú"><svg class="" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div></div></header><main class="shell__main" id="contenido"><div class="docs"><aside class="docs__aside"><nav aria-label="Documentación"><div class="sidebar__section"><h2 class="sidebar__heading">Empezar</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs" data-discover="true">Introducción</a></li><li><a class="sidebar__link" href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a class="sidebar__link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a class="sidebar__link" href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Conceptos</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/arquitectura" data-discover="true">Arquitectura</a></li><li><a class="sidebar__link" href="/docs/motor" data-discover="true">Motor (Engine)</a></li><li><a class="sidebar__link" href="/docs/servidor-mcp" data-discover="true">Servidor MCP</a></li><li><a class="sidebar__link" href="/docs/operacion" data-discover="true">Modos de operación</a></li><li><a class="sidebar__link" href="/docs/garantias" data-discover="true">Garantías y límites</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Guías</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/delegar" data-discover="true">Delegar trabajo</a></li><li><a class="sidebar__link" href="/docs/pipelines" data-discover="true">Encadenar agentes</a></li><li><a class="sidebar__link" href="/docs/claims" data-discover="true">Claims y colas</a></li><li><a class="sidebar__link" href="/docs/agentes" data-discover="true">Catálogo de agentes</a></li><li><a class="sidebar__link" aria-current="page" href="/docs/perfiles" data-discover="true">Perfiles (agents.json)</a></li><li><a class="sidebar__link" href="/docs/control-center" data-discover="true">Control Center</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Referencia</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/cli" data-discover="true">CLI</a></li><li><a class="sidebar__link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a class="sidebar__link" href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a class="sidebar__link" href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a class="sidebar__link" href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Notas de ingeniería</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a class="sidebar__link" href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a class="sidebar__link" href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a class="sidebar__link" href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></nav></aside><div class="docs__mobilebar"><button type="button" class="btn btn--ghost btn--sm"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Índice</button><span class="docs__mobilebar-current">Perfiles (agents.json)</span></div><article class="docs__main"><header class="doc-head"><p class="doc-head__crumbs"><a href="/docs" data-discover="true">Docs</a><span aria-hidden="true">/</span><span>Guías</span></p><h1 class="doc-head__title">Perfiles (agents.json)</h1><p class="doc-head__summary">Añadir un CLI nuevo sin tocar código.</p></header><div class="doc-body prose" data-doc-slug="perfiles"><p>Los subagentes que Jaravi puede lanzar se definen de forma <strong>declarativa</strong> en <code>agents.json</code>. Añadir un nuevo CLI es un cambio de configuración, nunca de código.</p>
+<h2 id="estructura-de-agents-json" tabindex="-1">Estructura de agents.json <a class="heading-anchor" href="#estructura-de-agents-json">#</a></h2>
+<pre><code class="language-jsonc"><figure class="code" data-lang="jsonc"><pre class="shiki shiki-themes github-light vesper" style="--shiki-light:#24292e;--shiki-dark:#FFF;--shiki-light-bg:#fff;--shiki-dark-bg:#101010" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">  "agents"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: [</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">    {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "id"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"opencode"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"OpenCode CLI como subagente"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "command"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"C:</span><span style="--shiki-light:#005CC5;--shiki-dark:#A0A0A0">\\</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">ruta</span><span style="--shiki-light:#005CC5;--shiki-dark:#A0A0A0">\\</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">al</span><span style="--shiki-light:#005CC5;--shiki-dark:#A0A0A0">\\</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">binario</span><span style="--shiki-light:#005CC5;--shiki-dark:#A0A0A0">\\</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">opencode.exe"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: [</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"run"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">, </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"{task}"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "unattendedArgs"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: [],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "env"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: { </span><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">"CI"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"true"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF"> },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "envAllowlist"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: [</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"OPENCODE_MODEL"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "closeStdin"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#FFF">true</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "io"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"pipe"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">      "idleTimeoutSeconds"</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#FFC799">300</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">    }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">  ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">}</span></span>
+<span class="line"></span></code></pre></figure></code></pre>
+<h3 id="campos-clave" tabindex="-1">Campos clave <a class="heading-anchor" href="#campos-clave">#</a></h3>
+<div class="table-scroll"><table><thead>
+<tr>
+<th>Campo</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command</code></td>
+<td>Ejecutable (ruta absoluta o en PATH). Usar el binario real, no el shim <code>.cmd</code> de npm</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>Argumentos con placeholders <code>{task}</code> y <code>{workdir}</code></td>
+</tr>
+<tr>
+<td><code>unattendedArgs</code></td>
+<td>Flags adicionales cuando <code>unattended=true</code> (ej: <code>--dangerously-skip-permissions</code>)</td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>Variables de entorno siempre inyectadas</td>
+</tr>
+<tr>
+<td><code>envAllowlist</code></td>
+<td>Variables que el llamador puede sobrescribir</td>
+</tr>
+<tr>
+<td><code>closeStdin</code></td>
+<td>Cierra stdin al lanzar — crítico para CLIs one-shot</td>
+</tr>
+<tr>
+<td><code>io</code></td>
+<td><code>&quot;pipe&quot;</code> (actual) o <code>&quot;pty&quot;</code> (post-MVP, ConPTY)</td>
+</tr>
+</tbody>
+</table></div><h2 id="leccion-closestdin" tabindex="-1">Lección: closeStdin <a class="heading-anchor" href="#leccion-closestdin">#</a></h2>
+<p>Los CLIs one-shot como <code>opencode run</code>, <code>claude -p</code> y <code>copilot -p</code> leen de stdin con pipes hasta recibir EOF. Sin <code>closeStdin: true</code>, el proceso se cuelga bloqueado esperando más entrada antes de producir una sola línea de output.</p>
+<aside class="callout callout--warning" data-callout="warning">
+<p class="callout__title">Siempre probar con el binario real</p>
+<p>Los shims <code>.cmd</code> de npm (ej: <code>opencode.cmd</code>) destruyen argumentos multilínea. Apuntar directamente al ejecutable: <code>C:\Users\USER\AppData\Roaming\npm\node_modules\opencode-ai\bin\opencode.exe</code>.</p>
+</aside>
+<h2 id="perfiles-incluidos" tabindex="-1">Perfiles incluidos <a class="heading-anchor" href="#perfiles-incluidos">#</a></h2>
+<ul>
+<li><strong>echo-demo</strong> — agente de demostración sin dependencias (cmd.exe)</li>
+<li><strong>flood-demo</strong> — estrés: 50 000 líneas para probar el ring buffer</li>
+<li><strong>claude</strong> — Claude Code headless con <code>-p</code></li>
+<li><strong>copilot</strong> — GitHub Copilot CLI</li>
+<li><strong>antigravity</strong> — Antigravity CLI (agy)</li>
+<li><strong>opencode</strong> — OpenCode CLI (líder open-source, 180k+ estrellas)</li>
+<li><strong>codex</strong> — Codex CLI de OpenAI, invocado vía <code>node</code> directo (el shim <code>.cmd</code> también pasa por <code>cmd.exe</code>); #1 en Terminal-Bench 2.1 (83.4%) según <a href="/docs">Introducción</a></li>
+<li><strong>gemini</strong> — Google Gemini CLI (<code>-p</code> + <code>--approval-mode yolo</code>)</li>
+<li><strong>qwen</strong> — Qwen Code (fork de Gemini CLI, mismos flags)</li>
+<li><strong>copilot</strong> — GitHub Copilot CLI (<code>-p</code> + <code>--allow-all-tools</code>, vía node)</li>
+<li><strong>deepcode</strong> — Deep Code CLI (<code>-p</code>); lee skills interoperables de <code>~/.agents/skills</code></li>
+<li><strong>mimo</strong> — Mimo/mimocode (fork de OpenCode, modo <code>run</code>)</li>
+</ul>
+<p>La matriz completa con estado de verificación está en <a href="/docs/agentes">Catálogo de agentes</a>.</p>
+<h2 id="hot-reload-agregar-agentes-sin-reiniciar-v0-3-2" tabindex="-1">Hot-reload: agregar agentes sin reiniciar (v0.3.2) <a class="heading-anchor" href="#hot-reload-agregar-agentes-sin-reiniciar-v0-3-2">#</a></h2>
+<p>La tool <code>reload_agents</code> re-lee <code>agents.json</code> en vivo. El flujo para dar más
+manos a Jaravi es: editar <code>%APPDATA%\jaravi\agents.json</code> (o el del repo) →
+llamar <code>reload_agents</code> → <code>list_agents</code> lo muestra → usarlo. Un archivo mal
+formado se rechaza y el catálogo activo sobrevive intacto. Esto es lo que hace
+a Jaravi aplicable a <strong>cualquier</strong> CLI, no a una lista fija.</p>
+<p>Véase también: <a href="/docs/motor">Motor</a>, <a href="/docs/servidor-mcp">Servidor MCP</a>, <a href="/docs/operacion">Modos de operación</a></p>
+</div><nav class="pager" aria-label="Páginas contiguas"><a class="pager__link pager__link--prev" href="/docs/agentes" data-discover="true"><span class="pager__kicker"><svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H6m5 5-5-5 5-5"></path></svg> Anterior</span><span class="pager__title">Catálogo de agentes</span></a><a class="pager__link pager__link--next" href="/docs/control-center" data-discover="true"><span class="pager__kicker">Siguiente <svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg></span><span class="pager__title">Control Center</span></a></nav></article><nav class="docs__toc" aria-label="En esta página"><p class="toc__heading">En esta página</p><ul class="toc__list"><li><a class="toc__link" href="#estructura-de-agents-json" data-level="2" data-active="true">Estructura de agents.json</a></li><li><a class="toc__link" href="#campos-clave" data-level="3" data-active="false">Campos clave</a></li><li><a class="toc__link" href="#leccion-closestdin" data-level="2" data-active="false">Lección: closeStdin</a></li><li><a class="toc__link" href="#perfiles-incluidos" data-level="2" data-active="false">Perfiles incluidos</a></li><li><a class="toc__link" href="#hot-reload-agregar-agentes-sin-reiniciar-v0-3-2" data-level="2" data-active="false">Hot-reload: agregar agentes sin reiniciar (v0.3.2)</a></li></ul></nav></div></main><footer class="footer"><div class="wrap"><div class="footer__grid"><div><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span></a><p class="footer__note">Orquestación determinista de sub-agentes CLI. El firehose entra en el motor; del motor solo sale un resumen acotado.</p></div><div><h2 class="footer__title">Empezar</h2><ul class="footer__list"><li><a href="/docs" data-discover="true">Introducción</a></li><li><a href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div><h2 class="footer__title">Referencia</h2><ul class="footer__list"><li><a href="/docs/cli" data-discover="true">CLI</a></li><li><a href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div><h2 class="footer__title">Notas de ingeniería</h2><ul class="footer__list"><li><a href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></div><div class="footer__bottom"><span>© <!-- -->2026<!-- --> Jaravi · Licencia <!-- -->MIT</span><a href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer">Código fuente</a><a href="https://github.com/JOSETRA44/jaravi/issues" target="_blank" rel="noopener noreferrer">Incidencias</a><a href="https://www.nuget.org/packages/Jaravi.McpServer" target="_blank" rel="noopener noreferrer">NuGet</a><a href="/jaravi/jaravi.pdf">Paper (PDF)</a><span style="margin-left:auto">.NET 8<!-- --> · v<!-- -->0.11.0</span></div></div></footer></div></div>
+</body>
+</html>

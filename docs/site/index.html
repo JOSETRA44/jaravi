@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jaravi — Orquesta otras CLIs de IA como sub-agentes</title>
+<meta name="description" content="Servidor MCP y CLI que delega trabajo a OpenCode, Codex, Claude Code, Gemini o Copilot y devuelve resultados acotados. El output crudo nunca llega a tu contexto.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0A09">
+
+<link rel="canonical" href="https://josetra44.github.io/jaravi/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Jaravi">
+<meta property="og:title" content="Jaravi — Orquesta otras CLIs de IA como sub-agentes">
+<meta property="og:description" content="Delega a otras CLIs de IA sin ahogarte en su output. Servidor MCP + CLI, determinista, con Scope Gate y topes duros.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0A09'/%3E%3Cpath d='M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='11' r='2.1' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='18' r='2.1' fill='%23F4F1EC' fill-opacity='.5'/%3E%3Ccircle cx='20.6' cy='25' r='2.1' fill='%23F4F1EC' fill-opacity='.22'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Antes de pintar: el tema elegido gana al del sistema, y ninguno de los dos
+  // puede provocar un flash de la paleta contraria.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jaravi-theme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* almacenamiento bloqueado: se queda en dark */ }
+  })();
+</script>
+</head>
+<body>
+<div id="root"><!--app-html--></div>
+<script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

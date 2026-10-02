@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLI · Documentación de Jaravi</title>
+<meta name="description" content="Los once verbos, sus opciones y sus códigos de salida.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0A09">
+
+<link rel="canonical" href="https://josetra44.github.io/jaravi/docs/cli">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Jaravi">
+<meta property="og:title" content="CLI · Documentación de Jaravi">
+<meta property="og:description" content="Los once verbos, sus opciones y sus códigos de salida.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0A09'/%3E%3Cpath d='M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='11' r='2.1' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='18' r='2.1' fill='%23F4F1EC' fill-opacity='.5'/%3E%3Ccircle cx='20.6' cy='25' r='2.1' fill='%23F4F1EC' fill-opacity='.22'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Antes de pintar: el tema elegido gana al del sistema, y ninguno de los dos
+  // puede provocar un flash de la paleta contraria.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jaravi-theme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* almacenamiento bloqueado: se queda en dark */ }
+  })();
+</script>
+  <script type="module" crossorigin src="/jaravi/assets/index.CtTeO49P.js"></script>
+  <link rel="stylesheet" crossorigin href="/jaravi/assets/style.CapeLkiA.css">
+</head>
+<body>
+<div id="root"><a class="skip-link" href="#contenido">Saltar al contenido</a><div class="aurora" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div><div class="shell"><header class="masthead" data-stuck="false"><div class="masthead__inner"><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span><span class="brand__version">v<!-- -->0.11.0</span></a><nav class="masthead__nav" aria-label="Principal"><a class="nav-link" href="/docs" data-discover="true">Documentación</a><a class="nav-link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a><a class="nav-link" aria-current="page" href="/docs/cli" data-discover="true">CLI</a><a class="nav-link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></nav><div class="masthead__actions"><button type="button" class="search-trigger"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg><span class="search-trigger__label">Buscar…</span><kbd>Ctrl K</kbd></button><button type="button" class="icon-btn search-trigger-compact" aria-label="Buscar en la documentación"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg></button><button type="button" class="icon-btn" aria-label="Cambiar a tema claro"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button><a class="icon-btn" href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer" aria-label="Jaravi en GitHub"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.7.4-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"></path></svg></a><button type="button" class="icon-btn masthead__burger" aria-expanded="false" aria-label="Abrir el menú"><svg class="" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div></div></header><main class="shell__main" id="contenido"><div class="docs"><aside class="docs__aside"><nav aria-label="Documentación"><div class="sidebar__section"><h2 class="sidebar__heading">Empezar</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs" data-discover="true">Introducción</a></li><li><a class="sidebar__link" href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a class="sidebar__link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a class="sidebar__link" href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Conceptos</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/arquitectura" data-discover="true">Arquitectura</a></li><li><a class="sidebar__link" href="/docs/motor" data-discover="true">Motor (Engine)</a></li><li><a class="sidebar__link" href="/docs/servidor-mcp" data-discover="true">Servidor MCP</a></li><li><a class="sidebar__link" href="/docs/operacion" data-discover="true">Modos de operación</a></li><li><a class="sidebar__link" href="/docs/garantias" data-discover="true">Garantías y límites</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Guías</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/delegar" data-discover="true">Delegar trabajo</a></li><li><a class="sidebar__link" href="/docs/pipelines" data-discover="true">Encadenar agentes</a></li><li><a class="sidebar__link" href="/docs/claims" data-discover="true">Claims y colas</a></li><li><a class="sidebar__link" href="/docs/agentes" data-discover="true">Catálogo de agentes</a></li><li><a class="sidebar__link" href="/docs/perfiles" data-discover="true">Perfiles (agents.json)</a></li><li><a class="sidebar__link" href="/docs/control-center" data-discover="true">Control Center</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Referencia</h2><ul class="sidebar__list"><li><a class="sidebar__link" aria-current="page" href="/docs/cli" data-discover="true">CLI</a></li><li><a class="sidebar__link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a class="sidebar__link" href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a class="sidebar__link" href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a class="sidebar__link" href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Notas de ingeniería</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a class="sidebar__link" href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a class="sidebar__link" href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a class="sidebar__link" href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></nav></aside><div class="docs__mobilebar"><button type="button" class="btn btn--ghost btn--sm"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Índice</button><span class="docs__mobilebar-current">CLI</span></div><article class="docs__main"><header class="doc-head"><p class="doc-head__crumbs"><a href="/docs" data-discover="true">Docs</a><span aria-hidden="true">/</span><span>Referencia</span></p><h1 class="doc-head__title">CLI</h1><p class="doc-head__summary">Los once verbos, sus opciones y sus códigos de salida.</p></header><div class="doc-body prose" data-doc-slug="cli"><p>Hasta v0.9.0, <code>jaravi-mcp</code> solo entendía <code>--help</code>, <code>--version</code>, <code>--stdio</code> y
+<code>--http</code>. No existía <strong>ni un solo subcomando que hiciera algo</strong>. Un agente con
+acceso a shell pero sin Jaravi registrado en su cliente MCP no tenía ninguna vía
+para delegar.</p>
+<h2 id="el-diagnostico-dos-afirmaciones-ciertas-y-una-conclusion-evitable" tabindex="-1">El diagnóstico: dos afirmaciones ciertas y una conclusión evitable <a class="heading-anchor" href="#el-diagnostico-dos-afirmaciones-ciertas-y-una-conclusion-evitable">#</a></h2>
+<p>Un agente externo reportó exactamente esto:</p>
+<ol>
+<li><em>&quot;<code>jaravi-mcp</code> es un servidor stdio de MCP, no un CLI; no existe un comando
+<code>jaravi</code> invocable desde la consola.&quot;</em> — <strong>Cierto, y era culpa de Jaravi.</strong>
+Ejecutarlo desde una shell levantaba un servidor HTTP que bloquea para
+siempre. No había nada más.</li>
+<li><em>&quot;Un servidor MCP no se puede registrar en una sesión ya en ejecución.&quot;</em> —
+<strong>Cierto, y no es corregible desde el servidor.</strong> Los clientes leen su config
+MCP al arrancar. Es comportamiento del cliente.</li>
+</ol>
+<p>Lo único evitable era la conclusión <em>&quot;por tanto no puedo usar Jaravi&quot;</em>: toda
+instancia — <strong>incluidas las de modo <code>--stdio</code></strong> — mantiene Kestrel arriba y sirve
+la <a href="/docs/servidor-mcp">REST API</a> en <code>:5210</code>. El camino existía. Pero nada en el
+<code>--help</code>, ni en las instrucciones, ni en el README lo decía, así que el agente no
+podía saberlo. Un camino que nadie documenta no es un camino.</p>
+<aside class="callout callout--important" data-callout="important">
+<p class="callout__title">La lección</p>
+<p>No basta con que una capacidad exista. Si la superficie que el agente
+inspecciona primero (<code>--help</code>) no la menciona, la capacidad no existe para él.</p>
+</aside>
+<h2 id="la-correccion-nueve-verbos-no-un-parche" tabindex="-1">La corrección: nueve verbos, no un parche <a class="heading-anchor" href="#la-correccion-nueve-verbos-no-un-parche">#</a></h2>
+<p><code>jaravi-mcp &lt;verbo&gt;</code> cubre todo lo que hacen las tools MCP: <code>agents</code>, <code>run</code>,
+<code>spawn</code>, <code>sessions</code>, <code>status</code>, <code>logs</code>, <code>await</code>, <code>kill</code> y <code>doctor</code>.</p>
+<p><code>run --agent &lt;id&gt; --task &quot;...&quot;</code> es el que resuelve el caso reportado: <strong>no
+necesita registro MCP, ni reinicio, ni servidor</strong>.</p>
+<aside class="callout callout--note" data-callout="note">
+<p class="callout__title">Dos verbos más en v0.10.0</p>
+<p><code>install</code> y <code>uninstall</code> completan la lista. No delegan trabajo: registran
+Jaravi en los CLIs de IA de la máquina y escriben en los ficheros de
+instrucciones que esos agentes leen al arrancar. Como <code>doctor</code>, corren
+<strong>antes</strong> de montar ningún motor — las herramientas que existen para
+arreglar una instalación rota no pueden exigir una instalación sana. Ver
+<a href="/docs/autoconfiguracion">Autoconfiguración</a>.</p>
+</aside>
+<h3 id="encadenar-sin-leer-el-intermedio-v0-11-0" tabindex="-1">Encadenar sin leer el intermedio (v0.11.0) <a class="heading-anchor" href="#encadenar-sin-leer-el-intermedio-v0-11-0">#</a></h3>
+<p>Las instrucciones MCP llevan desde v0.8.0 diciéndole al agente que encadene con
+<code>inputFromSessionId</code>… y desde la shell eso era <strong>inalcanzable</strong>. Mismo defecto que
+&quot;no existe un comando jaravi&quot;: la capacidad era real y estaba fuera de la
+superficie que el llamante miraba.</p>
+<pre><code class="language-bash"><figure class="code" data-lang="bash"><pre class="shiki shiki-themes github-light vesper" style="--shiki-light:#24292e;--shiki-dark:#FFF;--shiki-light-bg:#fff;--shiki-dark-bg:#101010" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#FFF">ID</span><span style="--shiki-light:#D73A49;--shiki-dark:#A0A0A0">=</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">$(</span><span style="--shiki-light:#6F42C1;--shiki-dark:#FFC799">jaravi</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> spawn</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --agent</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> codex</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --task</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> "audita src/api"</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --quiet</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">)</span></span>
+<span class="line"><span style="--shiki-light:#6F42C1;--shiki-dark:#FFC799">jaravi</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> await</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> "</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">$ID</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"</span></span>
+<span class="line"><span style="--shiki-light:#6F42C1;--shiki-dark:#FFC799">jaravi</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> run</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --agent</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> claude</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --task</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> "arregla lo que encontró"</span><span style="--shiki-light:#005CC5;--shiki-dark:#99FFE4"> --input-from</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4"> "</span><span style="--shiki-light:#24292E;--shiki-dark:#FFF">$ID</span><span style="--shiki-light:#032F62;--shiki-dark:#99FFE4">"</span></span>
+<span class="line"></span></code></pre></figure></code></pre>
+<p>El motor inyecta un extracto <strong>acotado</strong> del resultado previo en el task del
+siguiente; el intermedio no pasa nunca por el que orquesta. <code>--input-kind summary|tail|errors</code> (por defecto <code>summary</code>, que es el acotado — poner <code>tail</code> por
+defecto reintroduciría la manguera que esto existe para evitar), <code>--input-tail N</code>,
+<code>--input-grep RE</code>. Y <code>--claims a;b</code> con <code>--on-conflict reject|queue</code> exponen el
+registro de reclamaciones, que también era solo-MCP.</p>
+<aside class="callout callout--warning" data-callout="warning">
+<p class="callout__title">Un task multilínea rompe los perfiles `cmd`</p>
+<p><code>cmd.exe</code> deja de leer su línea de comandos en el primer salto de línea, así que
+un perfil <code>.cmd</code>/<code>.bat</code> recibe el task cortado <strong>y sale con exit 0</strong>: éxito, a
+ojos de cualquiera. Muerde justo aquí, porque el extracto inyectado es
+multilínea. Desde v0.11.0 el motor lo detecta y escribe un <code>[jaravi] WARNING</code>
+en el log de la sesión en vez de dejar que parezca que el sub-agente tenía poco
+que decir. Los perfiles reales apuntan al ejecutable, no al shim, justo por esto.</p>
+</aside>
+<h3 id="adjuntarse-o-correr-en-privado" tabindex="-1">Adjuntarse o correr en privado <a class="heading-anchor" href="#adjuntarse-o-correr-en-privado">#</a></h3>
+<p>La decisión de diseño que sostiene el resto (<a href="/docs/arquitectura">IJaraviClient</a> con
+dos implementaciones):</p>
+<ul>
+<li><strong><code>RestJaraviClient</code></strong> — si hay una instancia viva, el CLI la conduce por REST.
+Las sesiones lanzadas desde la shell son <strong>las mismas</strong> que ve el agente jefe
+por <code>list_sessions</code> y el usuario en el <a href="/docs/control-center">Control Center</a>. Un solo mundo.</li>
+<li><strong><code>InProcessJaraviClient</code></strong> — si no hay ninguna, monta un motor privado dentro
+del propio comando, con la misma receta que el servidor (<code>JaraviConfig</code>).</li>
+</ul>
+<p>El factory prefiere la instancia cuyo <code>repoRoot</code> <strong>contiene</strong> el workdir, no la
+más reciente: con varios proyectos abiertos, esa es la que tiene el Scope Gate
+correcto y el dashboard que el usuario está mirando. La comprobación es
+consciente de segmentos — <code>C:\src\app</code> no es ancestro de <code>C:\src\application</code>.</p>
+<aside class="callout callout--warning" data-callout="warning">
+<p class="callout__title">El registro de instancias miente, y por eso se sondea</p>
+<p>Windows reutiliza PIDs: una entrada de hace semanas puede parecer viva porque
+otro proceso heredó su número. <code>TryAttachAsync</code> hace <code>GET /healthz</code> con 2s de
+timeout antes de adjuntarse, y pasa a la siguiente si no responde.</p>
+</aside>
+<p>El motor privado <strong>muere con el comando</strong>. Por eso <code>spawn</code> se niega en ese modo
+con un mensaje que explica el porqué y ofrece las dos salidas, y por eso <code>run</code>,
+si expira el <code>--wait</code> sin servidor, <strong>mata la sesión y lo dice</strong>: devolver un
+<code>sessionId</code> que está a punto de dejar de existir sería mentir.</p>
+<h2 id="codigos-de-salida" tabindex="-1">Códigos de salida <a class="heading-anchor" href="#codigos-de-salida">#</a></h2>
+<p>Único canal estructurado que un llamador de shell tiene siempre.</p>
+<div class="table-scroll"><table><thead>
+<tr>
+<th>Código</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Terminó; el sub-agente salió con 0</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Error de Jaravi (perfil, Scope Gate, config)</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Uso incorrecto</td>
+</tr>
+<tr>
+<td><code>3</code></td>
+<td>El sub-agente terminó con código ≠ 0</td>
+</tr>
+<tr>
+<td><code>4</code></td>
+<td><strong>Sigue corriendo</strong> — recógelo con <code>await</code></td>
+</tr>
+</tbody>
+</table></div><p>La separación entre <code>3</code> y <code>4</code> es deliberada: <em>&quot;no ha terminado&quot;</em> no es
+<em>&quot;ha fallado&quot;</em>, y confundirlos es el malentendido más caro sobre este sistema
+(ver <a href="/docs/adopcion-por-agentes">Adopción por agentes</a>).</p>
+<h2 id="bugs-que-solo-aparecieron-al-ejecutarlo" tabindex="-1">Bugs que solo aparecieron al ejecutarlo <a class="heading-anchor" href="#bugs-que-solo-aparecieron-al-ejecutarlo">#</a></h2>
+<p>Los cuatro compilaban sin un aviso:</p>
+<ol>
+<li><strong><code>ILogger&lt;T&gt;</code> sin registrar.</strong> El <code>WebApplicationBuilder</code> lo aportaba gratis;
+un <code>ServiceCollection</code> pelado no. Todo <code>run</code> standalone reventaba.</li>
+<li><strong><code>--no-attach run</code> arrancaba un servidor web.</strong> El verbo se leía de <code>argv[0]</code>.
+La corrección — <em>el verbo es el primer positional, tras consumir las opciones</em>
+— es la única que sobrevive a <code>--task run</code>, donde ese <code>run</code> es un valor.</li>
+<li><strong>Un verbo mal escrito arrancaba un servidor web en silencio</strong>, indistinguible
+de un cuelgue. Ahora cualquier palabra suelta que no sea un verbo da error de uso.</li>
+<li><strong><code>--json</code> devolvía siempre 0</strong>, incluso con el sub-agente fallando con 7 —
+rompía el contrato de códigos justo en el modo que un script usa. <code>Json()</code> ya
+no decide el código; lo decide el comando, una sola vez, para ambos formatos.</li>
+</ol>
+<p>De paso, un <code>agents.json</code> mal formado escupía un stack trace y salía con 127;
+ahora es un error de dominio que nombra el archivo y la forma esperada.</p>
+<h2 id="cobertura" tabindex="-1">Cobertura <a class="heading-anchor" href="#cobertura">#</a></h2>
+<p>22 <a href="/docs/pruebas-de-contrato">tests</a> nuevos (57 en el proyecto, 132 en total)
+fijan el parseo de argumentos, el enrutado de verbos, la cobertura de rutas
+consciente de segmentos y la sonda de PATH. Cada uno corresponde a un fallo real
+de los de arriba.</p>
+<p>Véase también: <a href="/docs/servidor-mcp">Servidor MCP</a>, <a href="/docs/adopcion-por-agentes">Adopción por agentes</a>, <a href="/docs/operacion">Modos de operación</a>, <a href="/docs">Jaravi</a></p>
+</div><nav class="pager" aria-label="Páginas contiguas"><a class="pager__link pager__link--prev" href="/docs/control-center" data-discover="true"><span class="pager__kicker"><svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H6m5 5-5-5 5-5"></path></svg> Anterior</span><span class="pager__title">Control Center</span></a><a class="pager__link pager__link--next" href="/docs/tools-mcp" data-discover="true"><span class="pager__kicker">Siguiente <svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg></span><span class="pager__title">Tools MCP</span></a></nav></article><nav class="docs__toc" aria-label="En esta página"><p class="toc__heading">En esta página</p><ul class="toc__list"><li><a class="toc__link" href="#el-diagnostico-dos-afirmaciones-ciertas-y-una-conclusion-evitable" data-level="2" data-active="true">El diagnóstico: dos afirmaciones ciertas y una conclusión evitable</a></li><li><a class="toc__link" href="#la-correccion-nueve-verbos-no-un-parche" data-level="2" data-active="false">La corrección: nueve verbos, no un parche</a></li><li><a class="toc__link" href="#encadenar-sin-leer-el-intermedio-v0-11-0" data-level="3" data-active="false">Encadenar sin leer el intermedio (v0.11.0)</a></li><li><a class="toc__link" href="#adjuntarse-o-correr-en-privado" data-level="3" data-active="false">Adjuntarse o correr en privado</a></li><li><a class="toc__link" href="#codigos-de-salida" data-level="2" data-active="false">Códigos de salida</a></li><li><a class="toc__link" href="#bugs-que-solo-aparecieron-al-ejecutarlo" data-level="2" data-active="false">Bugs que solo aparecieron al ejecutarlo</a></li><li><a class="toc__link" href="#cobertura" data-level="2" data-active="false">Cobertura</a></li></ul></nav></div></main><footer class="footer"><div class="wrap"><div class="footer__grid"><div><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span></a><p class="footer__note">Orquestación determinista de sub-agentes CLI. El firehose entra en el motor; del motor solo sale un resumen acotado.</p></div><div><h2 class="footer__title">Empezar</h2><ul class="footer__list"><li><a href="/docs" data-discover="true">Introducción</a></li><li><a href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div><h2 class="footer__title">Referencia</h2><ul class="footer__list"><li><a href="/docs/cli" data-discover="true">CLI</a></li><li><a href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div><h2 class="footer__title">Notas de ingeniería</h2><ul class="footer__list"><li><a href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></div><div class="footer__bottom"><span>© <!-- -->2026<!-- --> Jaravi · Licencia <!-- -->MIT</span><a href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer">Código fuente</a><a href="https://github.com/JOSETRA44/jaravi/issues" target="_blank" rel="noopener noreferrer">Incidencias</a><a href="https://www.nuget.org/packages/Jaravi.McpServer" target="_blank" rel="noopener noreferrer">NuGet</a><a href="/jaravi/jaravi.pdf">Paper (PDF)</a><span style="margin-left:auto">.NET 8<!-- --> · v<!-- -->0.11.0</span></div></div></footer></div></div>
+</body>
+</html>

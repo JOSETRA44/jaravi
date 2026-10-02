@@ -1,0 +1,24 @@
+{
+  "name": "jaravi-site",
+  "private": true,
+  "version": "0.11.0",
+  "type": "module",
+  "description": "Sitio publico de Jaravi (GitHub Pages). Fuente del contenido de ../ .",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "markdown-it": "^15.0.1",
+    "markdown-it-anchor": "^10.0.0",
+    "shiki": "^4.4.3",
+    "vite": "^8.2.2"
+  }
+}

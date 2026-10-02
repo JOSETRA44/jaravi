@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brechas del protocolo MCP · Documentación de Jaravi</title>
+<meta name="description" content="Qué superficies faltaban y cuál se descartó.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0A09">
+
+<link rel="canonical" href="https://josetra44.github.io/jaravi/docs/brechas-mcp">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Jaravi">
+<meta property="og:title" content="Brechas del protocolo MCP · Documentación de Jaravi">
+<meta property="og:description" content="Qué superficies faltaban y cuál se descartó.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0A09'/%3E%3Cpath d='M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='11' r='2.1' fill='%23E2A03F'/%3E%3Ccircle cx='20.6' cy='18' r='2.1' fill='%23F4F1EC' fill-opacity='.5'/%3E%3Ccircle cx='20.6' cy='25' r='2.1' fill='%23F4F1EC' fill-opacity='.22'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  // Antes de pintar: el tema elegido gana al del sistema, y ninguno de los dos
+  // puede provocar un flash de la paleta contraria.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jaravi-theme');
+      var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { /* almacenamiento bloqueado: se queda en dark */ }
+  })();
+</script>
+  <script type="module" crossorigin src="/jaravi/assets/index.CtTeO49P.js"></script>
+  <link rel="stylesheet" crossorigin href="/jaravi/assets/style.CapeLkiA.css">
+</head>
+<body>
+<div id="root"><a class="skip-link" href="#contenido">Saltar al contenido</a><div class="aurora" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div><div class="shell"><header class="masthead" data-stuck="false"><div class="masthead__inner"><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span><span class="brand__version">v<!-- -->0.11.0</span></a><nav class="masthead__nav" aria-label="Principal"><a class="nav-link" href="/docs" data-discover="true">Documentación</a><a class="nav-link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a><a class="nav-link" href="/docs/cli" data-discover="true">CLI</a><a class="nav-link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></nav><div class="masthead__actions"><button type="button" class="search-trigger"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg><span class="search-trigger__label">Buscar…</span><kbd>Ctrl K</kbd></button><button type="button" class="icon-btn search-trigger-compact" aria-label="Buscar en la documentación"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg></button><button type="button" class="icon-btn" aria-label="Cambiar a tema claro"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button><a class="icon-btn" href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer" aria-label="Jaravi en GitHub"><svg class="" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.7.4-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"></path></svg></a><button type="button" class="icon-btn masthead__burger" aria-expanded="false" aria-label="Abrir el menú"><svg class="" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div></div></header><main class="shell__main" id="contenido"><div class="docs"><aside class="docs__aside"><nav aria-label="Documentación"><div class="sidebar__section"><h2 class="sidebar__heading">Empezar</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs" data-discover="true">Introducción</a></li><li><a class="sidebar__link" href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a class="sidebar__link" href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a class="sidebar__link" href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Conceptos</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/arquitectura" data-discover="true">Arquitectura</a></li><li><a class="sidebar__link" href="/docs/motor" data-discover="true">Motor (Engine)</a></li><li><a class="sidebar__link" href="/docs/servidor-mcp" data-discover="true">Servidor MCP</a></li><li><a class="sidebar__link" href="/docs/operacion" data-discover="true">Modos de operación</a></li><li><a class="sidebar__link" href="/docs/garantias" data-discover="true">Garantías y límites</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Guías</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/delegar" data-discover="true">Delegar trabajo</a></li><li><a class="sidebar__link" href="/docs/pipelines" data-discover="true">Encadenar agentes</a></li><li><a class="sidebar__link" href="/docs/claims" data-discover="true">Claims y colas</a></li><li><a class="sidebar__link" href="/docs/agentes" data-discover="true">Catálogo de agentes</a></li><li><a class="sidebar__link" href="/docs/perfiles" data-discover="true">Perfiles (agents.json)</a></li><li><a class="sidebar__link" href="/docs/control-center" data-discover="true">Control Center</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Referencia</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/cli" data-discover="true">CLI</a></li><li><a class="sidebar__link" href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a class="sidebar__link" href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a class="sidebar__link" href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a class="sidebar__link" href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div class="sidebar__section"><h2 class="sidebar__heading">Notas de ingeniería</h2><ul class="sidebar__list"><li><a class="sidebar__link" href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a class="sidebar__link" href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a class="sidebar__link" aria-current="page" href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a class="sidebar__link" href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></nav></aside><div class="docs__mobilebar"><button type="button" class="btn btn--ghost btn--sm"><svg class="" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Índice</button><span class="docs__mobilebar-current">Brechas del protocolo MCP</span></div><article class="docs__main"><header class="doc-head"><p class="doc-head__crumbs"><a href="/docs" data-discover="true">Docs</a><span aria-hidden="true">/</span><span>Notas de ingeniería</span></p><h1 class="doc-head__title">Brechas del protocolo MCP</h1><p class="doc-head__summary">Qué superficies faltaban y cuál se descartó.</p></header><div class="doc-body prose" data-doc-slug="brechas-mcp"><p>MCP tiene 6 superficies: <strong>tools</strong>, resources, prompts, progress, cancellation,
+elicitation. Antes de la ronda v0.6.0, <a href="/docs/servidor-mcp">Jaravi</a> solo usaba
+<strong>una</strong> — tools. Esta nota documenta la investigación de qué faltaba y qué se
+aplicó, más un feedback real de consumo externo que la disparó.</p>
+<h2 id="el-disparador-un-consumidor-externo-real" tabindex="-1">El disparador: un consumidor externo real <a class="heading-anchor" href="#el-disparador-un-consumidor-externo-real">#</a></h2>
+<p>Un agente orquestador (Antigravity) intentó usar <code>jaravi-mcp</code> y reportó 4
+bloqueos en <code>observaciones.md</code>. <strong>Lección metodológica clave: 2 de los 4
+diagnósticos eran falsos</strong> — siempre reproducir antes de arreglar:</p>
+<div class="table-scroll"><table><thead>
+<tr>
+<th>Diagnóstico reportado</th>
+<th>Realidad verificada</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&quot;stdio contamina stdout&quot;</td>
+<td>❌ Falso — <code>--stdio</code> ya era JSON puro. El bug real: el modo <strong>por defecto</strong> (sin flag) arrancaba HTTP y logueaba a stdout</td>
+</tr>
+<tr>
+<td>&quot;opencode se cuelga esperando stdin&quot;</td>
+<td>❌ Falso — con stdin cerrado responde en 17s exit 0. El bug real: <code>run_agent</code> bloqueaba hasta 600s, sobre el timeout de cualquier cliente</td>
+</tr>
+<tr>
+<td><code>--help</code> cuelga</td>
+<td>✅ Cierto</td>
+</tr>
+<tr>
+<td>Ruido en stderr / sin Swagger</td>
+<td>✅ Ciertos</td>
+</tr>
+</tbody>
+</table></div><p>Arreglos de esa ronda (v0.5.0): <code>CommandLine.cs</code> con <code>--help</code>/<code>--version</code> que
+responden antes de arrancar el host, autodetección de modo (<code>stdin</code> pipe →
+stdio, TTY → HTTP), stdout sagrado en todos los modos, <code>run_agent.maxWaitSec</code>
+600→90 con campo <code>nextStep</code> accionable, y Swagger/OpenAPI. Ver <a href="/docs/operacion">Modos de operación</a>.</p>
+<h2 id="brechas-de-protocolo-investigadas-v0-6-0" tabindex="-1">Brechas de protocolo investigadas (v0.6.0) <a class="heading-anchor" href="#brechas-de-protocolo-investigadas-v0-6-0">#</a></h2>
+<p>Se comparó la superficie usada por Jaravi contra el SDK oficial
+(<code>ModelContextProtocol.Core</code>, inspeccionando su XML de documentación) y contra
+el spec MCP. Tres brechas de alto impacto, tres aplicadas:</p>
+<h3 id="1-anotaciones-de-tools-aplicado" tabindex="-1">1. Anotaciones de tools — aplicado <a class="heading-anchor" href="#1-anotaciones-de-tools-aplicado">#</a></h3>
+<p>Sin <code>readOnlyHint</code>/<code>destructiveHint</code>/<code>idempotentHint</code>/<code>openWorldHint</code>, un
+cliente no puede distinguir <code>kill_agent</code> (destructivo) de <code>list_agents</code>
+(solo lectura) — pide permiso para todo, o para nada. Las 11 tools quedaron
+anotadas; verificado en <code>tools/list</code> que <code>kill_agent</code> sale con
+<code>&quot;destructiveHint&quot;:true</code> y las 6 de lectura con <code>&quot;readOnlyHint&quot;:true</code>.</p>
+<h3 id="2-progress-notifications-aplicado" tabindex="-1">2. Progress notifications — aplicado <a class="heading-anchor" href="#2-progress-notifications-aplicado">#</a></h3>
+<p>El SDK auto-inyecta <code>IProgress&lt;ProgressNotificationValue&gt;</code> en cualquier tool
+(no-op si el cliente no pidió progreso vía <code>_meta.progressToken</code> en la
+llamada). <code>run_agent</code> y <code>await_session</code> ahora trocean su espera en slices de
+5s y reportan progreso entre cada uno. <strong>Verificado en vivo</strong>: 8 notificaciones
+reales <code>notifications/progress</code> durante una espera de 30s, con mensaje de
+estado y conteo de líneas. Esto es exactamente lo que habría evitado que
+Antigravity percibiera un &quot;hang&quot; — muchos clientes MCP resetean su propio
+timeout al recibir progreso.</p>
+<h3 id="3-cancelacion-no-debe-dejar-huerfanos-aplicado-con-caveat-honesto" tabindex="-1">3. Cancelación no debe dejar huérfanos — aplicado, con caveat honesto <a class="heading-anchor" href="#3-cancelacion-no-debe-dejar-huerfanos-aplicado-con-caveat-honesto">#</a></h3>
+<p><code>run_agent</code> ahora captura <code>OperationCanceledException</code> cuando el <em>cliente</em>
+cancela la llamada (no cuando <code>maxWaitSec</code> simplemente se agota — eso es un
+camino distinto y deliberado que deja la sesión viva) y mata el árbol de
+procesos antes de propagar la cancelación.</p>
+<aside class="callout callout--warning" data-callout="warning">
+<p class="callout__title">No confirmado end-to-end en stdio con el SDK preview</p>
+<p>El formato del mensaje de cancelación (<code>notifications/cancelled</code>,
+<code>CancelledNotificationParams.RequestId</code>) coincide exactamente con lo que
+documenta el propio SDK, que además afirma explícitamente que los parámetros
+<code>CancellationToken</code> &quot;respetan&quot; esa notificación. Pero en 4 rondas de prueba
+en vivo (tras resolver varios bugs de mi propio arnés de PowerShell:
+<code>StreamReader.Peek()</code> bloqueante, <code>Task.Run</code> con overload ambiguo, lecturas
+concurrentes sobre el mismo stream), la sesión de prueba siguió <code>Running</code>
+15s después de cancelar — sin señal de que el <code>ct</code> del handler se cancelara.
+Es un paquete <strong>preview</strong> (<code>2.0.0-preview.1</code>); lo más probable es que la
+documentación XML ya describa el spec pero el wiring en runtime para
+transporte stdio aún no esté completo. El código de Jaravi es correcto y
+queda listo para cuando el SDK madure (y protege ya el camino HTTP, donde
+<code>RequestAborted</code> de ASP.NET es un mecanismo maduro e independiente de MCP).</p>
+</aside>
+<h3 id="descubrimiento-colateral-el-sdk-despacha-peticiones-en-paralelo" tabindex="-1">Descubrimiento colateral: el SDK despacha peticiones en paralelo <a class="heading-anchor" href="#descubrimiento-colateral-el-sdk-despacha-peticiones-en-paralelo">#</a></h3>
+<p>Verificado en la investigación: un <code>list_sessions</code> respondió en &lt;1s mientras
+un <code>run_agent</code> de hasta 90s seguía pendiente en la misma conexión stdio — el
+transporte NO serializa peticiones. Esto es una propiedad valiosa y ya
+correcta del stack, no algo que Jaravi tuviera que construir.</p>
+<h2 id="brechas-de-protocolo-cerradas-v0-7-0" tabindex="-1">Brechas de protocolo cerradas (v0.7.0) <a class="heading-anchor" href="#brechas-de-protocolo-cerradas-v0-7-0">#</a></h2>
+<p>Las dos brechas restantes de valor real quedaron aplicadas y verificadas en
+vivo por JSON-RPC crudo sobre stdio (no solo &quot;compila&quot;).</p>
+<h3 id="4-resources-aplicado" tabindex="-1">4. Resources — aplicado <a class="heading-anchor" href="#4-resources-aplicado">#</a></h3>
+<p><code>JaraviResources.cs</code> expone el catálogo de agentes y las sesiones como
+recursos direccionables por URI (<code>jaravi://agents</code>, <code>jaravi://sessions</code>) más
+tres plantillas de recurso (<code>jaravi://sessions/{sessionId}/summary|logs|errors</code>)
+que el SDK resuelve por matching de <code>UriTemplate</code> contra el parámetro del
+método. Es progressive disclosure real: un boss agent (o la lógica de carga
+de contexto del propio cliente) puede leer el catálogo o la lista de sesiones
+sin gastar un turno de tool-call. Los errores de recurso pasan por el mismo
+<code>McpGuard</code> que las tools, así que <code>sessions/nope123/summary</code> responde con el
+mismo <code>McpException</code> limpio que tendría <code>get_summary(&quot;nope123&quot;)</code> — una sola
+fuente de verdad para el mapeo de errores.</p>
+<p><strong>Verificado en vivo</strong>: <code>resources/list</code> devuelve los 2 recursos directos,
+<code>resources/templates/list</code> devuelve las 3 plantillas, <code>resources/read</code> sobre
+<code>jaravi://agents</code> devuelve los 11 perfiles como JSON, y el caso negativo
+(sessionId inexistente) da <code>McpException</code> código -32603 en vez de una
+excepción sin manejar.</p>
+<h3 id="5-prompts-aplicado" tabindex="-1">5. Prompts — aplicado <a class="heading-anchor" href="#5-prompts-aplicado">#</a></h3>
+<p><code>JaraviPrompts.cs</code> expone dos plantillas de orquestación reutilizables vía
+<code>[McpServerPromptType]</code>/<code>[McpServerPrompt]</code>:</p>
+<ul>
+<li><code>delegate_task</code> — rellena una llamada a <code>run_agent</code> a partir de
+<code>profile</code>/<code>workdir</code>/<code>objective</code>/<code>constraints</code>, e incluye instrucciones sobre
+cómo leer el resultado (<code>timedOut</code> → seguir <code>nextStep</code>, no asumir fallo;
+<code>state:&quot;Failed&quot;</code> → revisar <code>errorLines</code> antes de reintentar).</li>
+<li><code>audit_then_fix</code> — pipeline de dos etapas (auditor de solo lectura → fixer
+encadenado por <code>inputFromSessionId</code>) que documenta el patrón de &quot;no leas tú
+mismo el hallazgo crudo, deja que el motor se lo pase al siguiente agente&quot;.</li>
+</ul>
+<p>Un catálogo de tools por sí solo obliga a cada boss agent a redescubrir de
+forma independiente la secuencia correcta de llamadas; los prompts entregan
+esa secuencia ya rellenada, que es lo que realmente baja la barrera de
+entrada para un agente que no interiorizó la doctrina de
+<a href="/docs/perfiles">jaravi-orchestrator</a>. Muchos clientes MCP
+además exponen los prompts como entradas de menú tipo slash-command.</p>
+<p><code>JaraviPrompts</code> es una clase estática (no tiene estado ni dependencias) —
+<code>WithPrompts&lt;T&gt;()</code> no compila para tipos estáticos (<code>CS0718</code>, C# no permite
+un tipo estático como argumento genérico), así que el registro usa
+<code>WithPromptsFromAssembly()</code>, que descubre el tipo por reflexión sobre el
+atributo en vez de instanciarlo.</p>
+<p><strong>Verificado en vivo</strong>: <code>prompts/list</code> devuelve ambos con su descripción;
+<code>prompts/get delegate_task</code> con argumentos reales renderiza el <code>ChatMessage</code>
+ya relleno, listo para que el boss agent lo use tal cual.</p>
+<h2 id="brechas-evaluadas-y-descartadas-con-motivo" tabindex="-1">Brechas evaluadas y descartadas (con motivo) <a class="heading-anchor" href="#brechas-evaluadas-y-descartadas-con-motivo">#</a></h2>
+<ul>
+<li>
+<p><strong>Sampling</strong> — que el servidor le pida al cliente que invoque su propio LLM.
+No aplica al caso de uso de Jaravi: el motor es determinista a propósito
+(ver <a href="/docs/arquitectura">Arquitectura</a>), y Sampling delega precisamente la
+parte que Jaravi existe para NO delegar.</p>
+</li>
+<li>
+<p><strong>Elicitation</strong> — descartado tras investigar la API real del SDK
+(<code>McpServer.ElicitAsync(ElicitRequestParams, ct)</code> y su overload genérico
+<code>ElicitAsync&lt;T&gt;(message, options, ct)</code>, inyectados vía el parámetro especial
+<code>McpServer</code>). El mecanismo existe y funciona a nivel de protocolo, pero dos
+razones lo descartan para Jaravi, no solo &quot;no se exploró&quot;:</p>
+<ol>
+<li><strong>Depende de una capacidad de cliente que casi ningún host de Jaravi
+declara.</strong> <code>ElicitAsync</code> requiere que el cliente anuncie
+<code>ClientCapabilities.Elicitation</code> (una UI de formulario/URL para pedirle
+algo a un humano) y lanza <code>InvalidOperationException</code> si no la declara.
+Los clientes reales de <code>jaravi-mcp</code> son boss agents (Claude Code, codex,
+opencode) corriendo mayormente en modo headless por stdio — ninguno de
+los probados en este proyecto implementa esa capacidad. Usarlo
+obligaría a envolver cada llamada en un try/catch de fallback,
+añadiendo complejidad permanente por una capacidad ausente en la
+práctica.</li>
+<li><strong>Contradice el modelo de orquestación de Jaravi.</strong> El boss agent —no
+<code>jaravi-mcp</code>— es la capa que ya habla con el humano. Si un boss agent
+quiere confirmación antes de un <code>kill_agent</code>, puede pedírsela a su
+propio usuario en su propio turno de chat y solo entonces llamar a la
+tool; eso ya funciona hoy, en cualquier cliente, sin depender de que el
+host implemente formularios de elicitation. Meter una confirmación
+bloqueante dentro del motor determinista de Jaravi para replicar algo
+que la capa de arriba ya resuelve mejor no es una brecha, es la
+dirección equivocada.</li>
+</ol>
+<p>Mismo criterio que con Sampling: la superficie de protocolo de Jaravi se
+mantiene acotada a lo que mejora determinísticamente la orquestación
+agente-a-agente (tools, resources, prompts, progress, cancellation) y
+excluye lo que depende de comportamiento de cliente opcional y raramente
+implementado.</p>
+</li>
+</ul>
+<h2 id="red-de-seguridad-posterior-v0-7-1" tabindex="-1">Red de seguridad posterior (v0.7.1) <a class="heading-anchor" href="#red-de-seguridad-posterior-v0-7-1">#</a></h2>
+<p>Toda esta superficie —anotaciones, URIs de recursos, plantillas de prompt— pasó
+a estar cubierta por tests automáticos en <code>Jaravi.McpServer.Tests</code>, que afirman
+sobre lo que el SDK publica al cable en vez de sobre nuestros métodos. Antes solo
+existían arneses de PowerShell de un solo uso. Ver <a href="/docs/pruebas-de-contrato">Pruebas de contrato</a>
+(incluye el hallazgo de que <code>WithPromptsFromAssembly()</code> resuelve contra el
+assembly llamador, una fragilidad latente que el primer test destapó).</p>
+<p>Véase también: <a href="/docs/servidor-mcp">Servidor MCP</a>, <a href="/docs/operacion">Modos de operación</a>, <a href="/docs/agentes">Catálogo de agentes</a>, <a href="/docs/pruebas-de-contrato">Pruebas de contrato</a>, <a href="/docs">Jaravi</a></p>
+</div><nav class="pager" aria-label="Páginas contiguas"><a class="pager__link pager__link--prev" href="/docs/autoconfiguracion" data-discover="true"><span class="pager__kicker"><svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H6m5 5-5-5 5-5"></path></svg> Anterior</span><span class="pager__title">Autoconfiguración</span></a><a class="pager__link pager__link--next" href="/docs/pruebas-de-contrato" data-discover="true"><span class="pager__kicker">Siguiente <svg class="" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg></span><span class="pager__title">Pruebas de contrato</span></a></nav></article><nav class="docs__toc" aria-label="En esta página"><p class="toc__heading">En esta página</p><ul class="toc__list"><li><a class="toc__link" href="#el-disparador-un-consumidor-externo-real" data-level="2" data-active="true">El disparador: un consumidor externo real</a></li><li><a class="toc__link" href="#brechas-de-protocolo-investigadas-v0-6-0" data-level="2" data-active="false">Brechas de protocolo investigadas (v0.6.0)</a></li><li><a class="toc__link" href="#1-anotaciones-de-tools-aplicado" data-level="3" data-active="false">1. Anotaciones de tools — aplicado</a></li><li><a class="toc__link" href="#2-progress-notifications-aplicado" data-level="3" data-active="false">2. Progress notifications — aplicado</a></li><li><a class="toc__link" href="#3-cancelacion-no-debe-dejar-huerfanos-aplicado-con-caveat-honesto" data-level="3" data-active="false">3. Cancelación no debe dejar huérfanos — aplicado, con caveat honesto</a></li><li><a class="toc__link" href="#descubrimiento-colateral-el-sdk-despacha-peticiones-en-paralelo" data-level="3" data-active="false">Descubrimiento colateral: el SDK despacha peticiones en paralelo</a></li><li><a class="toc__link" href="#brechas-de-protocolo-cerradas-v0-7-0" data-level="2" data-active="false">Brechas de protocolo cerradas (v0.7.0)</a></li><li><a class="toc__link" href="#4-resources-aplicado" data-level="3" data-active="false">4. Resources — aplicado</a></li><li><a class="toc__link" href="#5-prompts-aplicado" data-level="3" data-active="false">5. Prompts — aplicado</a></li><li><a class="toc__link" href="#brechas-evaluadas-y-descartadas-con-motivo" data-level="2" data-active="false">Brechas evaluadas y descartadas (con motivo)</a></li><li><a class="toc__link" href="#red-de-seguridad-posterior-v0-7-1" data-level="2" data-active="false">Red de seguridad posterior (v0.7.1)</a></li></ul></nav></div></main><footer class="footer"><div class="wrap"><div class="footer__grid"><div><a class="brand" aria-label="Jaravi, inicio" href="/" data-discover="true"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="brand__mark"><rect width="32" height="32" rx="7" fill="var(--bg-well)" stroke="var(--border)"></rect><path d="M9 9h3.4v9.6a4.6 4.6 0 0 1-4.6 4.6H7v-3.1h.8a1.5 1.5 0 0 0 1.5-1.5Z" fill="var(--accent)"></path><circle cx="20.6" cy="11" r="2.1" fill="var(--accent)"></circle><circle cx="20.6" cy="18" r="2.1" fill="var(--fg)" opacity="0.5"></circle><circle cx="20.6" cy="25" r="2.1" fill="var(--fg)" opacity="0.22"></circle></svg><span class="brand__word">Jaravi</span></a><p class="footer__note">Orquestación determinista de sub-agentes CLI. El firehose entra en el motor; del motor solo sale un resumen acotado.</p></div><div><h2 class="footer__title">Empezar</h2><ul class="footer__list"><li><a href="/docs" data-discover="true">Introducción</a></li><li><a href="/docs/instalacion" data-discover="true">Instalación</a></li><li><a href="/docs/inicio-rapido" data-discover="true">Inicio rápido</a></li><li><a href="/docs/que-tu-agente-lo-use" data-discover="true">Que tu agente lo use</a></li></ul></div><div><h2 class="footer__title">Referencia</h2><ul class="footer__list"><li><a href="/docs/cli" data-discover="true">CLI</a></li><li><a href="/docs/tools-mcp" data-discover="true">Tools MCP</a></li><li><a href="/docs/recursos-y-prompts" data-discover="true">Recursos y prompts</a></li><li><a href="/docs/api-rest" data-discover="true">API REST y WebSocket</a></li><li><a href="/docs/configuracion" data-discover="true">Configuración</a></li></ul></div><div><h2 class="footer__title">Notas de ingeniería</h2><ul class="footer__list"><li><a href="/docs/adopcion-por-agentes" data-discover="true">Adopción por agentes</a></li><li><a href="/docs/autoconfiguracion" data-discover="true">Autoconfiguración</a></li><li><a href="/docs/brechas-mcp" data-discover="true">Brechas del protocolo MCP</a></li><li><a href="/docs/pruebas-de-contrato" data-discover="true">Pruebas de contrato</a></li></ul></div></div><div class="footer__bottom"><span>© <!-- -->2026<!-- --> Jaravi · Licencia <!-- -->MIT</span><a href="https://github.com/JOSETRA44/jaravi" target="_blank" rel="noopener noreferrer">Código fuente</a><a href="https://github.com/JOSETRA44/jaravi/issues" target="_blank" rel="noopener noreferrer">Incidencias</a><a href="https://www.nuget.org/packages/Jaravi.McpServer" target="_blank" rel="noopener noreferrer">NuGet</a><a href="/jaravi/jaravi.pdf">Paper (PDF)</a><span style="margin-left:auto">.NET 8<!-- --> · v<!-- -->0.11.0</span></div></div></footer></div></div>
+</body>
+</html>

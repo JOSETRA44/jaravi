@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://josetra44.github.io/jaravi/</loc><priority>1.0</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/instalacion</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/inicio-rapido</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/que-tu-agente-lo-use</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/arquitectura</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/motor</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/servidor-mcp</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/operacion</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/garantias</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/delegar</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/pipelines</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/claims</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/agentes</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/perfiles</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/control-center</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/cli</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/tools-mcp</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/recursos-y-prompts</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/api-rest</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/configuracion</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/adopcion-por-agentes</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/autoconfiguracion</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/brechas-mcp</loc><priority>0.7</priority></url>
+  <url><loc>https://josetra44.github.io/jaravi/docs/pruebas-de-contrato</loc><priority>0.7</priority></url>
+</urlset>

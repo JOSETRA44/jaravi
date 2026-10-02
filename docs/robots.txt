@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://josetra44.github.io/jaravi/sitemap.xml
