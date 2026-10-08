@@ -69,6 +69,28 @@ public static class CliRunner
             Console.Error.WriteLine("jaravi: cancelled.");
             return ExitCode.Error;
         }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            // Talking to an attached instance can fail after the attach probe
+            // passed: it can wedge, be killed, or stop answering mid-call. None of
+            // that is a crash, but it used to escape as an unhandled exception —
+            // a thirty-line stack trace and exit 127, which every shell reads as
+            // "command not found". An agent seeing that concludes Jaravi is not
+            // installed and stops trying. One line, and a code from the contract.
+            Console.Error.WriteLine(
+                $"jaravi: the Jaravi instance stopped answering ({ex.GetType().Name}). "
+                + "It may have been killed or wedged. Retry — the CLI starts its own engine "
+                + "when no instance is live — or force one with --no-attach.");
+            return ExitCode.Error;
+        }
+        catch (Exception ex)
+        {
+            // Last resort. Anything unforeseen still leaves through the documented
+            // contract rather than as a raw crash, because the exit code is the
+            // only structured channel a shell caller always has.
+            Console.Error.WriteLine($"jaravi: unexpected failure: {ex.GetType().Name}: {ex.Message}");
+            return ExitCode.Error;
+        }
     }
 
     private static async Task<int> DispatchAsync(CliArgs args, CancellationToken ct)

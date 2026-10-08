@@ -80,18 +80,33 @@ public static class JaraviClientFactory
 
     /// <summary>
     /// A registered instance can be stale in ways the PID check misses (bound to a
-    /// different port after an ephemeral fallback, still booting, wedged). /healthz
-    /// on a short timeout is the cheap proof that it will actually answer.
+    /// different port after an ephemeral fallback, still booting, wedged).
+    ///
+    /// The probe asks /readyz, not /healthz, and the difference is not academic:
+    /// /healthz answers from a literal and stays 200 while the engine behind it is
+    /// stuck, so attaching on it meant adopting a dead instance and failing on the
+    /// first real call. /readyz resolves the registry and the session manager, so
+    /// a 200 means the engine answers. Anything else — timeout included — and we
+    /// move on to the next instance or build our own.
     /// </summary>
     private static async Task<IJaraviClient?> TryAttachAsync(InstanceInfo instance, CancellationToken ct)
     {
         var http = new HttpClient { BaseAddress = new Uri(instance.Url), Timeout = TimeSpan.FromSeconds(10) };
         try
         {
-            using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, probe.Token);
-            var response = await http.GetAsync("/healthz", linked.Token);
+            var response = await http.GetAsync("/readyz", linked.Token);
             if (response.IsSuccessStatusCode) return new RestJaraviClient(http, instance);
+
+            // An older server predates /readyz and answers 404. It is still a
+            // valid peer, so fall back to the liveness probe rather than refusing
+            // to talk to an instance that is merely out of date.
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var legacy = await http.GetAsync("/healthz", linked.Token);
+                if (legacy.IsSuccessStatusCode) return new RestJaraviClient(http, instance);
+            }
         }
         catch (HttpRequestException) { /* not listening → try the next instance */ }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { /* probe timed out */ }

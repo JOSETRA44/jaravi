@@ -30,6 +30,26 @@ public static class CommandShim
     public static string FileName(bool windows) => windows ? $"{AliasName}.cmd" : AliasName;
 
     /// <summary>
+    /// Every file name the alias needs on this platform, in write order.
+    ///
+    /// On Windows that is two files, not one, and the second is the one that was
+    /// missing. A .cmd is only a command to cmd.exe and PowerShell. The shell an
+    /// agent actually types into on Windows is usually Git Bash — that is what
+    /// Claude Code's shell tool runs — and it resolves PATH entries by POSIX
+    /// rules: it finds jaravi-mcp.exe, and does not find jaravi.cmd under the
+    /// bare name `jaravi`. So the documented first command, `jaravi agents`,
+    /// answered "command not found" on a correct installation. The extension-less
+    /// sibling script fixes exactly that, and cmd.exe ignores it because it is not
+    /// in PATHEXT.
+    /// </summary>
+    public static IReadOnlyList<string> FileNames(bool windows) =>
+        windows ? [$"{AliasName}.cmd", AliasName] : [AliasName];
+
+    /// <summary>The script body for one of those file names.</summary>
+    public static string BuildScriptFor(string fileName) =>
+        BuildScript(windows: fileName.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Where global .NET tools put their launchers. Documented and stable; the
     /// running process itself lives in the immutable .store beneath it, so it is
     /// not a usable reference point for the alias.
@@ -54,43 +74,86 @@ public static class CommandShim
             return new ShimResult(null, false,
                 $"skipped — jaravi-mcp is not in {dir} (running from source, or installed elsewhere)");
 
-        var path = Path.Combine(dir, FileName(windows));
-        var script = BuildScript(windows);
+        var names = FileNames(windows);
+        var primary = Path.Combine(dir, names[0]);
+        var written = new List<string>();
+        var skipped = new List<string>();
 
-        if (File.Exists(path))
+        foreach (var name in names)
         {
-            var current = File.ReadAllText(path);
-            if (current == script) return new ShimResult(path, false, "already present");
-            if (!current.Contains("jaravi-mcp", StringComparison.OrdinalIgnoreCase))
-                return new ShimResult(path, false, "skipped — a different 'jaravi' command already exists here");
+            var path = Path.Combine(dir, name);
+            var script = BuildScriptFor(name);
+
+            if (File.Exists(path))
+            {
+                var current = File.ReadAllText(path);
+                if (current == script) continue;
+                if (!current.Contains("jaravi-mcp", StringComparison.OrdinalIgnoreCase))
+                {
+                    skipped.Add(name);
+                    continue;
+                }
+            }
+
+            if (dryRun) { written.Add(name); continue; }
+
+            File.WriteAllText(path, script);
+            // The extension-less sibling has to be executable for the shell that
+            // needs it; on Windows this is a no-op the runtime ignores.
+            if (!name.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) && !OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                    UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+            written.Add(name);
         }
 
-        if (dryRun) return new ShimResult(path, true, "would be written");
+        var note = (written.Count, skipped.Count) switch
+        {
+            (0, 0) => "already present",
+            (_, 0) when dryRun => $"would be written: {string.Join(", ", written)}",
+            (_, 0) => $"written: {string.Join(", ", written)}",
+            (0, _) => $"skipped — a different command already exists: {string.Join(", ", skipped)}",
+            _ => $"written: {string.Join(", ", written)}; skipped (not ours): {string.Join(", ", skipped)}",
+        };
 
-        File.WriteAllText(path, script);
-        if (!windows)
-            File.SetUnixFileMode(path,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-
-        return new ShimResult(path, true, "written");
+        return new ShimResult(primary, written.Count > 0, note);
     }
 
     /// <summary>Removes the alias, but only when it is the one we wrote.</summary>
     public static ShimResult Uninstall(bool dryRun)
     {
         var windows = OperatingSystem.IsWindows();
-        var path = Path.Combine(ToolsDirectory, FileName(windows));
+        var names = FileNames(windows);
+        var primary = Path.Combine(ToolsDirectory, names[0]);
+        var removed = new List<string>();
+        var left = new List<string>();
 
-        if (!File.Exists(path)) return new ShimResult(path, false, "not present");
+        foreach (var name in names)
+        {
+            var path = Path.Combine(ToolsDirectory, name);
+            if (!File.Exists(path)) continue;
 
-        if (!File.ReadAllText(path).Contains("jaravi-mcp", StringComparison.OrdinalIgnoreCase))
-            return new ShimResult(path, false, "left alone — not a Jaravi shim");
+            if (!File.ReadAllText(path).Contains("jaravi-mcp", StringComparison.OrdinalIgnoreCase))
+            {
+                left.Add(name);
+                continue;
+            }
 
-        if (dryRun) return new ShimResult(path, true, "would be removed");
+            if (!dryRun) File.Delete(path);
+            removed.Add(name);
+        }
 
-        File.Delete(path);
-        return new ShimResult(path, true, "removed");
+        var note = (removed.Count, left.Count) switch
+        {
+            (0, 0) => "not present",
+            (_, 0) when dryRun => $"would be removed: {string.Join(", ", removed)}",
+            (_, 0) => $"removed: {string.Join(", ", removed)}",
+            (0, _) => $"left alone — not a Jaravi shim: {string.Join(", ", left)}",
+            _ => $"removed: {string.Join(", ", removed)}; left alone: {string.Join(", ", left)}",
+        };
+
+        return new ShimResult(primary, removed.Count > 0, note);
     }
 }
