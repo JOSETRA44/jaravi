@@ -54,6 +54,21 @@ internal static class JaraviInstructions
         read, a targeted grep. Spawning a whole CLI for that is slower and costs more
         than doing it. Delegation is for volume and parallelism, not for avoiding work.
 
+        ## The shape of a call
+
+        Two arguments are enough. Everything else has a default.
+
+            run_agent(agent: "codex", task: "audit src/api and list security issues")
+
+        `agent` is the profile id from `list_agents`. `workdir` defaults to this
+        server's directory — pass it explicitly only to target a different one; it
+        is validated against the allowed roots either way. `profile` is accepted as
+        an alias for `agent`, so older call sites keep working.
+
+        If a call comes back with a stated cause — an unknown profile, a workdir
+        outside the allowed roots, a missing agent id — the message says what to
+        change. Fix the argument and call again rather than giving up on the tool.
+
         ## The five things agents get wrong
 
         1. `run_agent` is the default path: spawn + wait + summary in one call. Use
@@ -67,8 +82,8 @@ internal static class JaraviInstructions
         4. To chain agents, pass `inputFromSessionId` so the engine hands one session's
            result to the next. The intermediate output never enters your context.
         5. Give `brief` (objective / constraints / deliverables) rather than a bare
-           `task` string, and always an absolute `workdir`. Vague briefs are the main
-           cause of useless sub-agent runs.
+           `task` string, and an absolute `workdir` when it is not this server's own
+           directory. Vague briefs are the main cause of useless sub-agent runs.
 
         Call `list_agents` to see which CLIs are actually installed and verified here.
         Read `jaravi://agents` or `jaravi://sessions` for that same context without

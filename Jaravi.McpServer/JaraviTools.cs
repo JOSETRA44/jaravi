@@ -40,8 +40,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         "Chain agents with inputFromSessionId (the engine injects the previous terminal session's result into the task). " +
         "Declare 'claims' when parallel sessions may write the same paths; onConflict=queue parks the session until the claim frees.")]
     public async Task<object> SpawnAgent(
-        [Description("Agent profile id (see list_agents)")] string profile,
-        [Description("Working directory for the sub-agent; must be inside an allowed root")] string workdir,
+        [Description("REQUIRED. Agent profile id, e.g. \"codex\" (see list_agents). Alias: 'profile'")] string? agent = null,
+        [Description("Working directory for the sub-agent. Defaults to the server's directory; must be inside an allowed root")] string? workdir = null,
         [Description("Free-text task. Ignored when brief is provided")] string? task = null,
         [Description("Structured task: objective, context, constraints, deliverables, forbidden")] TaskBrief? brief = null,
         [Description("Run fully unattended (injects the profile's non-interactive flags). Default true")] bool unattended = true,
@@ -54,9 +54,11 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         [Description("Optional regex filter for inputKind=tail")] string? inputGrep = null,
         [Description("Path globs this session claims exclusively (relative to workdir), e.g. [\"src/Auth/**\"]")] string[]? claims = null,
         [Description("On claim conflict or full slots: reject (default, fails with conflict info) or queue (parks until free)")] string? onConflict = null,
+        [Description("Alias of 'agent', kept so callers written against the older schema keep working")] string? profile = null,
         CancellationToken ct = default)
     {
-        var request = BuildRequest(profile, workdir, task, brief, unattended, timeoutSec, env, labels,
+        var request = BuildRequest(ResolveProfileId(agent, profile), ResolveWorkdir(workdir),
+            task, brief, unattended, timeoutSec, env, labels,
             inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
 
@@ -78,8 +80,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         "so call await_session or get_summary with the returned sessionId to collect it. " +
         "Real coding agents often take minutes; for those prefer spawn_agent (returns instantly) + await_session.")]
     public async Task<object> RunAgent(
-        [Description("Agent profile id (see list_agents)")] string profile,
-        [Description("Working directory for the sub-agent; must be inside an allowed root")] string workdir,
+        [Description("REQUIRED. Agent profile id, e.g. \"codex\" (see list_agents). Alias: 'profile'")] string? agent = null,
+        [Description("Working directory for the sub-agent. Defaults to the server's directory; must be inside an allowed root")] string? workdir = null,
         [Description("Free-text task. Ignored when brief is provided")] string? task = null,
         [Description("Structured task: objective, context, constraints, deliverables, forbidden")] TaskBrief? brief = null,
         [Description("Max seconds to block before returning timedOut (the session keeps running). Default 90 — keep it under your MCP client's request timeout")] int maxWaitSec = 90,
@@ -93,10 +95,12 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         [Description("Optional regex filter for inputKind=tail")] string? inputGrep = null,
         [Description("Path globs this session claims exclusively (relative to workdir)")] string[]? claims = null,
         [Description("On claim conflict or full slots: reject (default) or queue")] string? onConflict = null,
+        [Description("Alias of 'agent', kept so callers written against the older schema keep working")] string? profile = null,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
-        var request = BuildRequest(profile, workdir, task, brief, unattended, timeoutSec, env, labels,
+        var request = BuildRequest(ResolveProfileId(agent, profile), ResolveWorkdir(workdir),
+            task, brief, unattended, timeoutSec, env, labels,
             inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
 
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
@@ -189,13 +193,53 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
         static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
     }
 
+    /// <summary>
+    /// The agent id, under whichever name the caller used.
+    ///
+    /// The schema called it 'profile' while the CLI flag, the README, the
+    /// orchestrator skill and every example say 'agent'. A boss agent following
+    /// any of those sent agent:"codex", the SDK could not bind the required
+    /// 'profile' parameter, and the call failed before reaching a single line of
+    /// our code — so the only thing the caller got back was "An error occurred
+    /// invoking 'run_agent'". No stated cause, nothing to correct, and the
+    /// rational next move is to stop using the tool. Both names bind now, and a
+    /// missing one says what to pass.
+    /// </summary>
+    private static string ResolveProfileId(string? agent, string? profile)
+    {
+        var id = Pick(agent) ?? Pick(profile);
+        if (id is not null) return id;
+
+        throw new McpException(
+            "Missing the agent id. Pass agent:\"<id>\" — for example agent:\"codex\". "
+            + "Call list_agents to see the ids available on this machine. "
+            + "('profile' is accepted as an alias for 'agent'.)");
+
+        static string? Pick(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>
+    /// The workdir, defaulting to where the server itself runs.
+    ///
+    /// It used to be required, which made the natural call — agent plus task —
+    /// fail on binding. The CLI never required it either: it defaults to the
+    /// current directory. An MCP client spawns the server in the project it has
+    /// open, so that process's directory is the same answer the CLI would give.
+    /// Nothing is loosened by this: the Scope Gate validates the result exactly
+    /// as before, and rejects it if it falls outside the allowed roots.
+    /// </summary>
+    private static string ResolveWorkdir(string? workdir) =>
+        string.IsNullOrWhiteSpace(workdir) ? Environment.CurrentDirectory : workdir.Trim();
+
     private static SpawnRequest BuildRequest(
         string profile, string workdir, string? task, TaskBrief? brief, bool unattended, int timeoutSec,
         Dictionary<string, string>? env, string[]? labels, string? inputFromSessionId, string? inputKind,
         int inputTailLines, string? inputGrep, string[]? claims, string? onConflict)
     {
         if (brief is null && string.IsNullOrWhiteSpace(task))
-            throw new McpException("Provide either 'task' or 'brief'.");
+            throw new McpException(
+                "Provide either 'task' (free text) or 'brief' (structured). "
+                + "Example: task:\"audit src/api for hardcoded secrets\".");
 
         PipelineInput? inputFrom = null;
         if (inputFromSessionId is not null)
