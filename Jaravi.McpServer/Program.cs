@@ -237,6 +237,24 @@ api.MapPost("/sessions/{id}/input", async (string id, InputRequest input, ISessi
 
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok", service = "jaravi-mcp-server" }));
 
+// Liveness is not readiness, and conflating them cost real sessions. /healthz
+// answers from a literal, so it stays 200 even when the engine behind it is
+// wedged — and the CLI used exactly that to decide an instance was worth
+// attaching to. It would attach, then die on the first real call.
+//
+// /readyz touches the engine: resolving the registry proves the DI singleton
+// actually built, and listing sessions proves the session manager answers. A
+// wedged instance does not reply here, so a short-timeout probe rejects it and
+// the caller moves on to the next instance or starts its own engine.
+app.MapGet("/readyz", (IAgentRegistry registry, ISessionManager sessions) =>
+    Results.Ok(new
+    {
+        status = "ready",
+        service = "jaravi-mcp-server",
+        agents = registry.GetAll().Count,
+        sessions = sessions.ListSnapshots().Count,
+    }));
+
 // ---- Web Control Center: single embedded page, no wwwroot on disk ----------
 var dashboardHtml = new Lazy<string>(LoadEmbeddedDashboard);
 app.MapGet("/", () => Results.Content(dashboardHtml.Value, "text/html; charset=utf-8"));
