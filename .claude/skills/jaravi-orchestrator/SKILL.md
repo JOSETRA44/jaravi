@@ -158,7 +158,7 @@ detecta solapamiento por raíz de ruta y aplica tu política:
 
 ```
 run_agent(
-  profile: "claude",
+  agent: "claude",
   workdir: "C:\\Users\\USER\\source\\mi-proyecto",
   brief: {
     objective: "Arreglar los tests que fallan en el módulo auth",
