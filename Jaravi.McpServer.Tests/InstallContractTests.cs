@@ -413,9 +413,40 @@ public class CommandShimTests
         Assert.Equal("jaravi.cmd", CommandShim.FileName(windows: true));
         Assert.Equal("jaravi", CommandShim.FileName(windows: false));
     }
+
+    [Fact]
+    public void Windows_also_gets_an_extension_less_alias_for_posix_shells()
+    {
+        // The bug this pins: a correct install still answered "command not found"
+        // to `jaravi agents`, because the only alias was a .cmd and the shell an
+        // agent types into on Windows is Git Bash, which resolves PATH by POSIX
+        // rules. The documented first command did not exist for the caller it was
+        // written for.
+        var names = CommandShim.FileNames(windows: true);
+
+        Assert.Contains("jaravi.cmd", names);
+        Assert.Contains("jaravi", names);
+        Assert.Equal(2, names.Count);
+    }
+
+    [Fact]
+    public void Each_alias_file_carries_the_script_its_own_shell_understands()
+    {
+        Assert.StartsWith("@echo off", CommandShim.BuildScriptFor("jaravi.cmd"));
+        Assert.StartsWith("#!/bin/sh", CommandShim.BuildScriptFor("jaravi"));
+    }
+
+    [Fact]
+    public void Posix_shells_get_one_alias_and_no_cmd_file()
+    {
+        var names = CommandShim.FileNames(windows: false);
+
+        Assert.Equal(["jaravi"], names);
+    }
 }
 
 /// <summary>Dispatch and flag parsing for the new verbs.</summary>
+[Collection(ProcessGlobalCollection.Name)]
 public class InstallDispatchTests
 {
     [Fact]
