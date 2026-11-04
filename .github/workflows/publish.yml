@@ -76,7 +76,7 @@ jobs:
           } else {
             # Dry run: take the csproj version, tagged so it can't be mistaken.
             [xml]$proj = Get-Content Jaravi.McpServer/Jaravi.McpServer.csproj
-            $base = ($proj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
+            $base = ($proj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
             $version = "$base-ci.$env:GITHUB_RUN_NUMBER"
           }
           "version=$version" >> $env:GITHUB_OUTPUT
