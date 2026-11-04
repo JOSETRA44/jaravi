@@ -1,0 +1,165 @@
+# Publishes Jaravi.McpServer to NuGet.org via Trusted Publishing (OIDC).
+#
+# Trigger: publishing a GitHub Release. The release tag IS the package version
+# (`v1.2.3` or `1.2.3`, SemVer 2 prerelease suffixes allowed). The <Version> in
+# the csproj is only the default for local builds; CI always overrides it.
+#
+# No API key is stored anywhere. NuGet/login exchanges this job's GitHub OIDC
+# token for a short-lived (~1 h) NuGet key. nuget.org accepts the exchange only
+# when the token matches the "GitHubActionsPublish" policy:
+#   owner JOSETRA44 · repo jaravi · workflow publish.yml · environment production
+# Renaming this file or the environment breaks publishing until the policy is
+# updated on nuget.org to match.
+#
+# workflow_dispatch runs build + test + pack only (a dry run); it never pushes.
+
+name: publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Least privilege by default; the publish job raises only id-token.
+permissions:
+  contents: read
+
+# Never run two publishes at once, and never cancel one halfway through a push.
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PACKAGE_ID: Jaravi.McpServer
+
+jobs:
+  build:
+    name: Build, test, pack
+    # The test suites drive real cmd.exe processes, so they need Windows.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        env:
+          # Passed through env, never interpolated into the script: a tag name
+          # is user-controlled input.
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          if ($env:EVENT_NAME -eq 'release') {
+            $version = $env:RELEASE_TAG -replace '^v', ''
+            $semver = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+            if ($version -notmatch $semver) {
+              throw "Release tag '$env:RELEASE_TAG' is not SemVer (expected v1.2.3 or 1.2.3[-pre])."
+            }
+            # A GitHub "pre-release" must ship as a NuGet prerelease and vice
+            # versa, or users on stable get something marked unstable on GitHub.
+            $hasSuffix = $null -ne $Matches[4]
+            if ($hasSuffix -ne ($env:IS_PRERELEASE -eq 'true')) {
+              throw "Tag '$env:RELEASE_TAG' and the release's pre-release flag disagree."
+            }
+          } else {
+            # Dry run: take the csproj version, tagged so it can't be mistaken.
+            [xml]$proj = Get-Content Jaravi.McpServer/Jaravi.McpServer.csproj
+            $base = ($proj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
+            $version = "$base-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Package version: $version"
+
+      - name: Restore
+        run: dotnet restore Jaravi.McpServer.Tests/Jaravi.McpServer.Tests.csproj && dotnet restore Jaravi.Engine.Tests/Jaravi.Engine.Tests.csproj
+
+      # The WPF Dashboard is not part of the package, so it is not built here.
+      - name: Test engine
+        run: dotnet test Jaravi.Engine.Tests/Jaravi.Engine.Tests.csproj -c Release --no-restore
+
+      - name: Test MCP server
+        run: dotnet test Jaravi.McpServer.Tests/Jaravi.McpServer.Tests.csproj -c Release --no-restore
+
+      - name: Pack
+        run: dotnet pack Jaravi.McpServer/Jaravi.McpServer.csproj -c Release --no-restore -o artifacts -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Verify package
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $expected = "artifacts/$env:PACKAGE_ID.$env:VERSION.nupkg"
+          if (-not (Test-Path $expected)) {
+            Get-ChildItem artifacts
+            throw "Expected $expected was not produced."
+          }
+          if (-not (Test-Path "artifacts/$env:PACKAGE_ID.$env:VERSION.snupkg")) {
+            throw "Symbol package missing."
+          }
+          # Smoke test: the packed tool must install and start.
+          dotnet tool install --tool-path "$env:RUNNER_TEMP/tool" --add-source artifacts $env:PACKAGE_ID --version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { throw "dotnet tool install failed." }
+          Get-ChildItem "$env:RUNNER_TEMP/tool"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish to NuGet.org
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Must match the Trusted Publishing policy. Its protection rules (allowed
+    # tags, optional reviewers) are configured in the repo settings.
+    environment:
+      name: production
+      url: https://www.nuget.org/packages/Jaravi.McpServer/${{ needs.build.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write # lets NuGet/login request the OIDC token; nothing else needs it
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 8.0.x
+
+      - name: NuGet login (OIDC → short-lived key)
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: JOSETRA44 # nuget.org profile name (not e-mail); not a secret
+
+      # No --skip-duplicate: re-releasing an existing version must fail loudly,
+      # since NuGet versions are immutable. The .snupkg is pushed automatically
+      # alongside its .nupkg.
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: >
+          dotnet nuget push "artifacts/${PACKAGE_ID}.${VERSION}.nupkg"
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json

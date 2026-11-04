@@ -23,6 +23,19 @@
     <RepositoryUrl>https://github.com/JOSETRA44/jaravi</RepositoryUrl>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <!-- Supply-chain metadata: the .nupkg records the exact commit it was built
+         from, and Source Link (built into the .NET 8 SDK) lets debuggers fetch
+         sources from GitHub. The .snupkg goes to NuGet's symbol server. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Deterministic paths only in CI: local builds keep full paths for debugging. -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>
