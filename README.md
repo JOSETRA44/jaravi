@@ -1,3 +1,18 @@
+<img width="1600" height="534" alt="101293" src="https://github.com/user-attachments/assets/277f9cab-21ae-4704-931d-f9aff342a6a6" />
+<p align="center">
+  <a href="https://www.nuget.org/packages/Jaravi.McpServer">
+    <img src="https://img.shields.io/nuget/v/Jaravi.McpServer?style=flat-square&logo=nuget&logoColor=white" alt="NuGet">
+  </a>
+  <img src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 8">
+  <img src="https://img.shields.io/badge/MCP-Server-2563EB?style=flat-square" alt="MCP Server">
+  <a href="https://github.com/JOSETRA44/jaravi/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/JOSETRA44/jaravi?style=flat-square" alt="License">
+  </a>
+  <a href="https://github.com/JOSETRA44/jaravi/commits/main">
+    <img src="https://img.shields.io/github/last-commit/JOSETRA44/jaravi?style=flat-square" alt="Last Commit">
+  </a>
+</p>
+
 # Jaravi
 
 **Orquestación determinista de sub-agentes CLI.** Jaravi ejecuta Codex, Claude
