@@ -18,7 +18,7 @@
 **Orquestación determinista de sub-agentes CLI.** Jaravi ejecuta Codex, Claude
 Code, OpenCode, Gemini, Qwen o Copilot como sub-agentes en tu máquina y devuelve
 un resumen acotado. El output crudo —decenas de miles de líneas— muere dentro del
-motor.
+motor...
 
 Servidor MCP y CLI en un solo binario · .NET 8 · MIT · v0.11.0
 
