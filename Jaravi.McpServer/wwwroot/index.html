@@ -67,6 +67,15 @@
   .console .system{color:var(--system)}
   .empty{color:var(--muted);padding:40px;text-align:center}
   .foot{padding:6px 16px;border-top:1px solid var(--rule);color:var(--muted);font-size:11px;background:var(--panel)}
+  .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .chip{font-size:11px;padding:1px 6px;border-radius:9px;background:#1E1E2E;border:1px solid var(--rule);color:var(--text)}
+  .pres-active{border-color:var(--running)} .pres-idle{border-color:var(--waiting)} .pres-offline{opacity:.45}
+  .team-view{flex:1;overflow-y:auto;padding:10px 16px;font-size:12.5px}
+  .team-view h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+  .team-view table{width:100%;border-collapse:collapse}
+  .team-view td,.team-view th{text-align:left;padding:3px 6px;border-bottom:1px solid var(--rule);vertical-align:top}
+  .team-view th{color:var(--muted);font-weight:normal}
+  .rc-stored{color:var(--waiting)} .rc-delivered{color:var(--running)} .rc-acknowledged{color:var(--completed)} .rc-undeliverable{color:var(--failed)}
 </style>
 </head>
 <body>
@@ -103,6 +112,9 @@
 
     <div class="section-title">Locks activos (claims)</div>
     <div id="locks" class="locks"><div class="repo" style="padding:4px">ninguno</div></div>
+
+    <div class="section-title">Equipos</div>
+    <div id="teams"><div class="repo" style="padding:4px">ninguno</div></div>
   </div>
 
   <div class="col right">
@@ -147,8 +159,10 @@ async function bootstrap(){
   state.profiles.forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.id; p.appendChild(o); });
 
   await refresh();
+  await loadTeams();
   connectWS();
   setInterval(pollMetrics, 2000);
+  setInterval(loadTeams, 10000); // presence decays without events; refresh it now and then
   setInterval(tickDurations, 1000);
 }
 
@@ -220,9 +234,73 @@ function renderLocks(){
   });
 }
 
-function select(id){ state.selected=id; state.seqBySession.set(id,0); renderSessions(); loadLogs(id); renderDetail(); }
+function select(id){ state.selectedTeam=null; state.selected=id; state.seqBySession.set(id,0); renderSessions(); renderTeams(); loadLogs(id); renderDetail(); }
+
+// ---- teams ----
+// Everything shown here was written by agents: escape it, always.
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const REACH = {live:'⚡ en vivo', hook:'↪ en su próximo paso', pull:'📥 solo si revisa su inbox'};
+state.teams = []; state.selectedTeam = null;
+
+async function loadTeams(){
+  try{
+    const teams = await j('/api/teams');
+    state.teams = await Promise.all(teams.slice(0,12).map(async t=>{
+      try{ return await j(`/api/team/status?team=${encodeURIComponent(t.id)}`); }catch{ return {team:t, members:[], tasksByState:{}, openTasks:[], recentEvents:[]}; }
+    }));
+    renderTeams();
+    if(state.selectedTeam) renderTeamDetail();
+  }catch(e){ /* server without teams */ }
+}
+let teamTimer=null;
+function scheduleTeams(){ if(teamTimer) return; teamTimer=setTimeout(()=>{ teamTimer=null; loadTeams(); }, 400); }
+
+function renderTeams(){
+  const box=$('teams');
+  if(!state.teams.length){ box.innerHTML='<div class="repo" style="padding:4px">ninguno</div>'; return; }
+  box.innerHTML='';
+  state.teams.forEach(st=>{
+    const t=st.team, d=document.createElement('div');
+    d.className='card'+(t.id===state.selectedTeam?' sel':'');
+    d.onclick=()=>selectTeam(t.id);
+    const counts=Object.entries(st.tasksByState||{}).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')||'sin tareas';
+    d.innerHTML=`<div class="row1"><span class="name">${esc(t.name)}</span><span class="state">${(st.members||[]).length} miembros</span></div>
+      <div class="metrics"><span>${counts}</span>${st.messagesStored?`<span class="rc-stored">${st.messagesStored} sin entregar</span>`:''}</div>
+      <div class="chips">${(st.members||[]).map(m=>`<span class="chip pres-${norm(m.presence)}" title="${esc(m.agent)} — ${esc(REACH[norm(m.delivery)]||'')}">${m.isLead?'★ ':''}${esc(m.name)}${m.role?` <span style="color:var(--muted)">${esc(m.role)}</span>`:''}</span>`).join('')}</div>`;
+    box.appendChild(d);
+  });
+}
+
+function selectTeam(id){ state.selected=null; state.selectedTeam=id; renderSessions(); renderTeams(); renderTeamDetail(); }
+
+async function renderTeamDetail(){
+  const st=state.teams.find(x=>x.team.id===state.selectedTeam); if(!st) return;
+  const t=st.team, names=Object.fromEntries((st.members||[]).map(m=>[m.id,m.name]));
+  $('detailHead').innerHTML=`<div class="title">Equipo ${esc(t.name)}</div><div class="kpi"><span>${esc(t.objective||'')}</span></div>`;
+  $('foot').textContent=`workdir: ${t.workdir}  ·  id ${t.id}`;
+  let receipts=[];
+  try{ receipts = await j(`/api/team/receipts?team=${encodeURIComponent(t.id)}&limit=40`); }catch{}
+  const c=$('console'); c.className='team-view';
+  c.innerHTML=`
+    <h3>Miembros</h3>
+    <table><tr><th>miembro</th><th>agente</th><th>presencia</th><th>cómo le llega un mensaje</th><th>trabajando en</th><th>sin leer</th></tr>
+    ${(st.members||[]).map(m=>`<tr><td>${m.isLead?'★ ':''}${esc(m.name)} <span style="color:var(--muted)">${esc(m.role)}</span></td>
+      <td>${esc(m.agent)}${m.sessionId?` · <a href="#" onclick="select('${esc(m.sessionId)}');return false">${esc(m.sessionId)}</a>`:''}</td>
+      <td>${esc(m.presence)}</td><td>${esc(REACH[norm(m.delivery)]||m.delivery)}</td><td>${esc(m.currentTask||'—')}</td><td>${m.unread||0}</td></tr>`).join('')}</table>
+    <h3>Tareas abiertas</h3>
+    ${(st.openTasks||[]).length?`<table><tr><th>id</th><th>tarea</th><th>estado</th><th>dueño</th><th>ronda</th><th>revisa</th></tr>
+      ${st.openTasks.map(k=>`<tr><td class="mono">${esc(k.id)}</td><td>${esc(k.title)}</td><td>${esc(k.state)}</td><td>${esc(names[k.ownerMemberId]||'—')}</td><td>${k.iteration}</td><td>${esc(k.verifier||'—')}</td></tr>`).join('')}</table>`:'<div class="repo">ninguna</div>'}
+    <h3>Mensajes y recibos</h3>
+    ${receipts.length?`<table><tr><th>hora</th><th>de → para</th><th>mensaje</th><th>recibo</th></tr>
+      ${receipts.map(r=>`<tr><td>${new Date(r.createdAt).toLocaleTimeString()}</td><td>${esc(names[r.from]||r.from)} → ${esc(names[r.member]||r.member)}</td>
+        <td>${esc((r.body||'').slice(0,160))}</td><td class="rc-${norm(r.state)}">${esc(r.state)}${r.via?` (${esc(r.via)})`:''}</td></tr>`).join('')}</table>`:'<div class="repo">sin mensajes</div>'}
+    <h3>Actividad reciente</h3>
+    ${(st.recentEvents||[]).slice().reverse().map(e=>`<div><span style="color:var(--muted)">${new Date(e.at).toLocaleTimeString()}</span> ${esc(e.summary)}</div>`).join('')||'<div class="repo">nada aún</div>'}`;
+}
 
 function renderDetail(){
+  if(state.selectedTeam) return renderTeamDetail();
+  $('console').className='console';
   const s=state.selected?state.sessions.get(state.selected):null;
   if(!s){ $('detailHead').innerHTML='<div class="title">Selecciona una sesión</div>'; $('console').innerHTML='<div class="empty">Sin sesión seleccionada</div>'; $('foot').textContent=''; return; }
   renderKpis(s);
@@ -244,7 +322,7 @@ function renderKpis(s){
 }
 
 async function loadLogs(id){
-  const c=$('console'); c.innerHTML='';
+  const c=$('console'); c.className='console'; c.innerHTML='';
   try{
     const lines = await j(`/api/sessions/${id}/logs?maxLines=500`);
     lines.forEach(appendLine);
@@ -283,6 +361,9 @@ function handleEvent(e){
       break; }
     case 'logBatchEmitted':
       if(e.sessionId===state.selected){ (e.entries||[]).forEach(en=>{ appendLine(en); state.seqBySession.set(e.sessionId,en.seq); }); }
+      break;
+    case 'teamActivity':
+      scheduleTeams();
       break;
   }
 }
