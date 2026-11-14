@@ -158,6 +158,43 @@ jaravi run --agent claude --task "arregla lo que encontró" --input-from "$ID"
 `--on-conflict reject|queue` reserva rutas en exclusiva para que dos sesiones en
 paralelo no se pisen.
 
+## Equipos de agentes (de cualquier proveedor)
+
+Delegar manda trabajo y espera. Un **equipo** hace que agentes de distintos
+proveedores trabajen *juntos*: cada miembro sabe quién lidera y quiénes son sus
+compañeros, se hablan directamente sin que nadie haga de intermediario,
+comparten tablero de tareas (dependencias, leases de rutas) y decisiones, y se
+revisan entre ellos (implementar → revisar → corregir, con escalado al líder).
+
+```text
+team_create(name: "parser", as: "lead", objective: "reescribir el parser")
+team_spawn(agent: "gemini", name: "impl", role: "implementer", task: "…")
+team_spawn(agent: "claude", name: "rev", role: "reviewer", task: "revisa lo que te asignen")
+task_create(title: "Tokenizer", owner: "impl", verifier: "role:reviewer")
+```
+
+**Recibido no es lo mismo que guardado.** Cada mensaje lleva un recibo por
+destinatario:
+
+- *delivered*: ya está en su contexto, como turno nuevo de una sesión viva o vía hook;
+- *queued*: está a mitad de turno y lo recibe al terminarlo;
+- *stored*: solo lo verá si revisa su inbox.
+
+Las sesiones vivas usan el protocolo nativo de cada agente: ACP para Gemini,
+Antigravity, OpenCode, Copilot y Qwen; stream-json para Claude; app-server
+para Codex.
+
+**Agentes arrancados por fuera** se unen desde su propia terminal, totalmente
+interactivos:
+
+```bash
+jaravi team launch parser --as alice --role tester -- claude
+```
+
+Todo vive en un **hub por usuario** que arranca solo (`jaravi hub status`): un
+mismo mundo para todos los agentes y clientes, que sobrevive a reiniciarlos.
+Detalle en [`jaravi-docs/Jaravi Teams.md`](jaravi-docs/Jaravi%20Teams.md).
+
 ## Códigos de salida
 
 Único canal estructurado que un llamador de shell tiene siempre.
@@ -177,7 +214,7 @@ mismo en ambos formatos.
 
 ## Tools MCP
 
-Once tools, todas anotadas: seis son de solo lectura y una sola es destructiva,
+Once tools de sesiones, todas anotadas: seis son de solo lectura y una sola es destructiva,
 así que cualquier cliente sabe sin preguntar cuáles son seguras.
 
 | Tool | Qué hace |
@@ -193,6 +230,17 @@ así que cualquier cliente sabe sin preguntar cuáles son seguras.
 | `await_session` | Bloquea hasta estado terminal, reportando progreso |
 | `get_summary` | Digest: exit code, duración y errores extraídos |
 | `kill_agent` | Mata el árbol de procesos completo |
+
+Y trece de equipo:
+
+| Tool | Qué hace |
+|---|---|
+| `team_create` / `team_join` | Crear o unirse a un equipo. Devuelve el *charter* con el líder, los compañeros y cómo alcanzarlos |
+| `team_spawn` | Incorpora un agente instalado como miembro vivo |
+| `team_status` | Digest acotado: presencia, tablero, decisiones, recibos |
+| `team_send` / `team_ask` / `team_inbox` | Mensajes directos con recibo; pregunta y espera; bandeja con ack |
+| `task_create` / `task_claim` / `task_update` / `task_complete` | Tablero con dependencias, leases y revisión |
+| `decision_record` / `lease_paths` | Decisiones heredables; arriendo de rutas |
 
 `read_output` tiene un **tope duro de 500 líneas del lado del servidor**
 (`Engine:MaxReadLines`). Pedir 50 000 devuelve 500: el límite no depende de que

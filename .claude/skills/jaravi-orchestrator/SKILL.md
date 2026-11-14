@@ -7,7 +7,10 @@ description: >-
   ejecutar tareas en paralelo con sub-agentes, orquestar CLIs de IA, o
   mencione Jaravi, spawn_agent, run_agent o sesiones de sub-agentes — incluso
   si no dice la palabra "orquestar". También cuando una tarea grande se
-  beneficiaría de dividirse entre varios agentes trabajando a la vez.
+  beneficiaría de dividirse entre varios agentes trabajando a la vez, cuando
+  el usuario quiere un EQUIPO de agentes de distintos proveedores que colaboren
+  entre sí (team_create, team_spawn, team_send, revisión cruzada), o cuando el
+  agente recibe un "[Jaravi team message]" o forma parte de un equipo Jaravi.
 ---
 
 # Jaravi Orchestrator — el rol de jefe
@@ -127,6 +130,41 @@ detecta solapamiento por raíz de ruta y aplica tu política:
    resultado y devolverte una conclusión.
 4. **`await_session` es tu punto de sincronización**, no el polling. Bloquea
    hasta terminal o `waitingInput` con timeout. No hagas bucles de `get_status`.
+
+## Equipos: de jefe-y-subordinados a colaboradores
+
+Delegar (`run_agent`) sirve para trabajo que sale y vuelve. Cuando el trabajo
+necesita conversación entre agentes —uno implementa, otro revisa, un tercero
+prueba, y se piden cosas entre ellos— monta un **equipo**. Cada miembro sabe
+quién lidera, quiénes son sus compañeros y cómo alcanzarlos, y se hablan
+directamente: **no hagas de relé**.
+
+```
+team_create(name: "parser", as: "lead", objective: "reescribir el parser con tests")
+team_spawn(agent: "gemini", name: "impl", role: "implementer", task: "…")
+team_spawn(agent: "claude", name: "rev",  role: "reviewer",    task: "revisa lo que te asignen")
+task_create(title: "Tokenizer", owner: "impl", paths: ["src/parser/**"], verifier: "role:reviewer")
+team_status()          # digest acotado: presencia, tablero, decisiones, recibos
+```
+
+- **Recibos, no suposiciones.** Cada `team_send` devuelve, por destinatario:
+  *delivered* (ya está en su contexto, como turno nuevo o vía hook), *queued*
+  (está a mitad de turno; lo recibe al terminarlo) o *stored* (solo lo verá si
+  revisa su inbox). Planifica con eso: un miembro *pull* no te responderá pronto.
+- **Bucle de revisión sin ti en medio.** Con `verifier`, `task_complete` (con
+  evidencia real: tests, diff) crea la revisión para el verificador; un veredicto
+  `changes` devuelve la tarea al autor con los hallazgos; tras N rondas se escala
+  al líder. Revisión cruzada entre proveedores = un revisor que no comparte los
+  sesgos del autor.
+- **Decisiones**: `decision_record` las anuncia y las hereda quien entre después
+  (van en su charter). **Leases**: `task_claim` arrienda los paths de la tarea;
+  un hook impide a Claude editar paths de otro.
+- **Agentes de fuera**: cualquiera conectado a Jaravi puede `team_join`. Desde
+  una terminal: `jaravi team launch <equipo> --as <nombre> -- claude` (Claude
+  recibe mensajes por hooks en su siguiente paso y al quedar ocioso).
+- **Si tú eres un miembro** (recibiste "[Jaravi team message]"): responde con
+  `team_send(replyTo: <id>)`, pide ayuda con `team_ask`, termina con
+  `task_complete` + evidencia, y si no tienes nada más que hacer, dilo y para.
 
 ## Flujo de orquestación
 
