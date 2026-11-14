@@ -26,6 +26,16 @@ public interface ISessionManager
 
     SessionSummary GetSummary(string sessionId);
 
+    /// <summary>
+    /// Hands text to a live session as a new turn — or queues it for the turn after
+    /// the current one. <paramref name="onSent"/> fires once the text has actually
+    /// been written to the agent, which is the moment a message counts as delivered.
+    /// <paramref name="urgent"/> injects into the running turn where the protocol
+    /// can (Codex turn/steer); elsewhere it only jumps the queue.
+    /// </summary>
+    Task<TurnDelivery> DeliverTurnAsync(string sessionId, string text, bool urgent = false,
+        Action? onSent = null, CancellationToken ct = default);
+
     /// <summary>Tree-kills the session's process.</summary>
     Task<SessionSnapshot> KillAsync(string sessionId, string? reason = null, CancellationToken ct = default);
 }

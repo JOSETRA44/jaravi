@@ -57,4 +57,10 @@ public sealed record AgentProfile
 
     /// <summary>Seconds without output while Running before the session is marked WaitingInput.</summary>
     public int IdleTimeoutSeconds { get; init; } = 60;
+
+    /// <summary>
+    /// How to run this agent as a persistent, message-receiving team member.
+    /// Null = one-shot only (receives its task once, then nothing).
+    /// </summary>
+    public LiveProfile? Live { get; init; }
 }

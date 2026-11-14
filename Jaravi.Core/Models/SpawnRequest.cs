@@ -37,6 +37,34 @@ public sealed record SpawnRequest
 
     public ConflictPolicy OnConflict { get; init; } = ConflictPolicy.Reject;
 
+    /// <summary>
+    /// Run the profile's live runtime (persistent session, new turn per message)
+    /// instead of the one-shot command. Requires the profile to declare 'live'.
+    /// </summary>
+    public bool Live { get; init; }
+
+    /// <summary>
+    /// MCP servers injected into a live session. Engine-internal: set by the team
+    /// layer inside the hub, never accepted from a wire payload, because each one
+    /// is a command the agent will execute.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<InjectedMcpServer> McpServers { get; init; } = [];
+
+    /// <summary>
+    /// Env vars set by Jaravi itself (member identity). Not filtered by the profile
+    /// allowlist and, like <see cref="McpServers"/>, never accepted from the wire.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<string, string> SystemEnv { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
+    /// The caller's own directory, allowed in addition to the configured roots
+    /// (see ScopeGate). Set by the hub from the calling agent's context, never from the wire.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? CallerRoot { get; init; }
+
     /// <summary>Final task text: rendered brief when present, otherwise the free-text task.</summary>
     public string ResolveTaskText() => Brief?.RenderPrompt() ?? Task ?? "";
 }

@@ -12,6 +12,7 @@ namespace Jaravi.Core.Events;
 [JsonDerivedType(typeof(SessionStateChanged), "sessionStateChanged")]
 [JsonDerivedType(typeof(LogBatchEmitted), "logBatchEmitted")]
 [JsonDerivedType(typeof(SessionExited), "sessionExited")]
+[JsonDerivedType(typeof(TeamActivity), "teamActivity")]
 public abstract record JaraviEvent
 {
     public required string SessionId { get; init; }
@@ -43,4 +44,18 @@ public sealed record SessionExited : JaraviEvent
     public required SessionState FinalState { get; init; }
     public int? ExitCode { get; init; }
     public double DurationSeconds { get; init; }
+}
+
+/// <summary>
+/// Something happened in a team: a member joined, a message was delivered, a task
+/// moved, a decision was recorded. SessionId is "team:&lt;teamId&gt;" so observers
+/// that group by session still get a stable key.
+/// </summary>
+public sealed record TeamActivity : JaraviEvent
+{
+    public required string TeamId { get; init; }
+    public required string Kind { get; init; }
+    public string? MemberId { get; init; }
+    public required string Summary { get; init; }
+    public long Seq { get; init; }
 }

@@ -28,6 +28,15 @@ public sealed record SessionSnapshot
 
     /// <summary>True when <see cref="TokenCount"/> is a context estimate rather than a figure the agent reported.</summary>
     public bool TokenEstimated { get; init; }
+
+    /// <summary>
+    /// Persistent session that takes a new turn per message. For these, WaitingInput
+    /// means "turn finished, alive and listening", not "possibly stuck".
+    /// </summary>
+    public bool Live { get; init; }
+
+    /// <summary>The agent's own session/thread id (ACP sessionId, Claude session_id, Codex threadId) once known.</summary>
+    public string? AgentSessionId { get; init; }
 }
 
 /// <summary>Compact digest a boss agent reads instead of raw logs.</summary>
