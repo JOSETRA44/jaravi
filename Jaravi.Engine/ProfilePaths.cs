@@ -32,6 +32,11 @@ public static class ProfilePaths
     {
         Command = Expand(profile.Command),
         Args = [.. profile.Args.Select(Expand)],
+        Live = profile.Live is null ? null : profile.Live with
+        {
+            Command = profile.Live.Command is null ? null : Expand(profile.Live.Command),
+            Args = [.. profile.Live.Args.Select(Expand)],
+        },
     };
 
     public static string Expand(string value)

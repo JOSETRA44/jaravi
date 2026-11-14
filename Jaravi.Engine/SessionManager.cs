@@ -4,6 +4,7 @@ using Jaravi.Core;
 using Jaravi.Core.Abstractions;
 using Jaravi.Core.Events;
 using Jaravi.Core.Models;
+using Jaravi.Engine.Live;
 using Microsoft.Extensions.Logging;
 
 namespace Jaravi.Engine;
@@ -37,7 +38,11 @@ public sealed class SessionManager(
     public async Task<SessionSnapshot> SpawnAsync(SpawnRequest request, CancellationToken ct = default)
     {
         var profile = registry.Get(request.ProfileId);
-        var workdir = _scopeGate.ValidateWorkdir(request.Workdir);
+        var workdir = _scopeGate.ValidateWorkdir(request.Workdir, request.CallerRoot);
+        if (request.Live && profile.Live is null)
+            throw new JaraviException(
+                $"Agent '{profile.Id}' has no live runtime in agents.json, so it cannot stay in a session and receive "
+                + "messages. Spawn it without live, or add a 'live' block to its profile (see jaravi-docs/Matriz de Runtimes.md).");
         var pipelineContext = request.InputFrom is null ? null : BuildPipelineContext(request.InputFrom);
 
         var session = new Session(Guid.NewGuid().ToString("N")[..8], request, profile, workdir)
@@ -95,6 +100,18 @@ public sealed class SessionManager(
         var state = session.SnapshotState();
         if (state.IsTerminal() || session.Process is null)
             throw new JaraviException($"Session '{sessionId}' is {state} — cannot receive input.");
+
+        if (session.Live is not null)
+        {
+            if (keys is { Count: > 0 })
+                throw new JaraviException("Live sessions take text, not keys: the text becomes the agent's next turn.");
+            if (text is not null)
+            {
+                var outcome = await DeliverTurnAsync(sessionId, text, urgent: false, onSent: null, ct);
+                AppendSystemLog(session, $"input {(outcome == TurnDelivery.Sent ? "sent as a new turn" : "queued for the next turn")} ({text.Length} chars)");
+            }
+            return;
+        }
 
         if (text is not null)
             await session.Process.WriteInputAsync(text, ct);
@@ -156,6 +173,15 @@ public sealed class SessionManager(
             TailLines = logStore.Read(sessionId, new LogQuery { Tail = 10, MaxLines = 10 })
                 .Select(e => e.Text).ToList(),
         };
+    }
+
+    public async Task<TurnDelivery> DeliverTurnAsync(string sessionId, string text, bool urgent = false,
+        Action? onSent = null, CancellationToken ct = default)
+    {
+        var session = GetSession(sessionId);
+        if (session.Live is null || session.SnapshotState().IsTerminal())
+            return TurnDelivery.NotLive;
+        return await session.Live.EnqueueAsync(text, urgent, onSent);
     }
 
     public Task<SessionSnapshot> KillAsync(string sessionId, string? reason = null, CancellationToken ct = default)
@@ -222,8 +248,11 @@ public sealed class SessionManager(
 
         session.StartedAt = DateTimeOffset.UtcNow;
         Transition(session, SessionState.Running, null);
-        AppendSystemLog(session, $"spawned pid {session.Process.Pid}: {spec.Command} ({session.Profile.Id})");
-        WarnIfMultilineTaskWillBeTruncated(session, spec);
+        AppendSystemLog(session, $"spawned pid {session.Process.Pid}: {spec.Command} ({session.Profile.Id}{(session.Request.Live ? $", live {session.Profile.Live!.Protocol}" : "")})");
+        if (session.Request.Live)
+            session.Live = LiveProtocolFactory.Create(session.Profile.Live!.Protocol, BuildLiveContext(session));
+        else
+            WarnIfMultilineTaskWillBeTruncated(session, spec);
 
         eventBus.Publish(new SessionStarted
         {
@@ -244,7 +273,16 @@ public sealed class SessionManager(
 
         try
         {
-            await PumpOutputAsync(session, reader);
+            if (session.Live is not null)
+            {
+                _ = OpenLiveAsync(session);
+                await PumpLiveAsync(session, reader);
+                session.Live.OnClosed();
+            }
+            else
+            {
+                await PumpOutputAsync(session, reader);
+            }
 
             var exitCode = await session.Process!.Exited;
             session.ExitCode = exitCode;
@@ -277,6 +315,8 @@ public sealed class SessionManager(
     private void FinalizeSession(Session session)
     {
         _claims.Release(session.Id);
+        if (session.McpConfigFile is not null)
+            try { File.Delete(session.McpConfigFile); } catch { /* temp file; best effort */ }
         TryStartQueuedSessions();
     }
 
@@ -367,6 +407,23 @@ public sealed class SessionManager(
                 return;
             }
 
+            if (session.Live is not null)
+            {
+                // A live session's state is the protocol's word, not a guess from
+                // silence: idle between turns is its normal resting state. It is
+                // only stopped after sitting idle past the profile's TTL.
+                var ttl = session.Profile.Live!.IdleTtlSeconds;
+                if (state == SessionState.WaitingInput && session.IdleSince is { } since
+                    && (DateTimeOffset.UtcNow - since).TotalSeconds > ttl)
+                {
+                    AppendSystemLog(session, $"idle for {ttl}s with nothing to do — stopping the live session");
+                    Transition(session, SessionState.Completed, "idle timeout");
+                    session.Process?.KillTree();
+                    return;
+                }
+                continue;
+            }
+
             if (state != SessionState.Running) continue;
 
             var started = session.StartedAt ?? session.CreatedAt;
@@ -453,6 +510,7 @@ public sealed class SessionManager(
     {
         var request = session.Request;
         var profile = session.Profile;
+        if (request.Live) return BuildLiveStartSpec(session);
 
         var taskText = request.ResolveTaskText();
         if (session.PipelineContext is not null)
@@ -466,12 +524,7 @@ public sealed class SessionManager(
         if (request.Unattended)
             args.AddRange(profile.UnattendedArgs);
 
-        var env = new Dictionary<string, string>(profile.Env);
-        foreach (var (key, value) in request.Env)
-        {
-            if (profile.EnvAllowlist.Contains(key, StringComparer.OrdinalIgnoreCase))
-                env[key] = value;
-        }
+        var env = BuildEnv(request, profile);
 
         return new ProcessStartSpec
         {
@@ -482,6 +535,147 @@ public sealed class SessionManager(
             Io = profile.Io,
             CloseStdin = profile.CloseStdin,
         };
+    }
+
+    private static Dictionary<string, string> BuildEnv(SpawnRequest request, AgentProfile profile)
+    {
+        var env = new Dictionary<string, string>(profile.Env);
+        foreach (var (key, value) in request.Env)
+        {
+            if (profile.EnvAllowlist.Contains(key, StringComparer.OrdinalIgnoreCase))
+                env[key] = value;
+        }
+        foreach (var (key, value) in request.SystemEnv)
+            env[key] = value;
+        return env;
+    }
+
+    // ---- live sessions -------------------------------------------------------
+
+    /// <summary>
+    /// Launch spec for a persistent session: the profile's live command, stdin kept
+    /// open (it carries the protocol), and — for agents that take MCP servers as a
+    /// launch flag — a config file with the injected servers.
+    /// </summary>
+    private ProcessStartSpec BuildLiveStartSpec(Session session)
+    {
+        var request = session.Request;
+        var profile = session.Profile;
+        var live = profile.Live!;
+
+        var needsConfigFile = live.Args.Any(a => a.Contains("{mcpConfigFile}", StringComparison.Ordinal));
+        if (needsConfigFile)
+            session.McpConfigFile = WriteMcpConfigFile(session.Id, request.McpServers);
+
+        var args = live.Args
+            .Select(a => a.Replace("{workdir}", session.Workdir).Replace("{mcpConfigFile}", session.McpConfigFile ?? ""))
+            .ToList();
+        if (request.Unattended)
+            args.AddRange(live.UnattendedArgs);
+
+        return new ProcessStartSpec
+        {
+            Command = live.Command ?? profile.Command,
+            Args = args,
+            Workdir = session.Workdir,
+            Env = BuildEnv(request, profile),
+            Io = IoMode.Pipe,
+            CloseStdin = false,
+        };
+    }
+
+    /// <summary>
+    /// The MCP config shape Claude Code (--mcp-config) and Copilot (--additional-mcp-config @file)
+    /// both read. Written under the user's temp dir and removed when the session ends; it
+    /// holds the member's token, so it is never written into the project.
+    /// </summary>
+    private static string WriteMcpConfigFile(string sessionId, IReadOnlyList<InjectedMcpServer> servers)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "jaravi");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"mcp-{sessionId}.json");
+        var doc = new Dictionary<string, object>
+        {
+            ["mcpServers"] = servers.ToDictionary(s => s.Name, s => (object)new Dictionary<string, object>
+            {
+                ["type"] = "stdio",
+                ["command"] = s.Command,
+                ["args"] = s.Args,
+                ["env"] = s.Env,
+                ["tools"] = new[] { "*" },
+            }),
+        };
+        File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(doc));
+        return path;
+    }
+
+    private LiveContext BuildLiveContext(Session session) => new()
+    {
+        WriteLine = text => session.Process!.WriteInputAsync(text),
+        Log = text => AppendAgentLog(session, text),
+        SetTurnActive = active =>
+        {
+            if (active)
+            {
+                session.IdleSince = null;
+                Transition(session, SessionState.Running, "turn started");
+            }
+            else
+            {
+                session.IdleSince = DateTimeOffset.UtcNow;
+                Transition(session, SessionState.WaitingInput, "turn finished — listening");
+            }
+        },
+        SetAgentSessionId = id => session.AgentSessionId = id,
+        Fatal = reason => FailLive(session, reason),
+        Workdir = session.Workdir,
+        McpServers = session.Request.McpServers,
+        McpViaConfigFile = session.McpConfigFile is not null,
+        Unattended = session.Request.Unattended,
+    };
+
+    private async Task OpenLiveAsync(Session session)
+    {
+        try
+        {
+            await session.Live!.OpenAsync(session.Request.ResolveTaskText() + (session.PipelineContext ?? ""), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            FailLive(session, ex.Message);
+        }
+    }
+
+    private void FailLive(Session session, string reason)
+    {
+        AppendSystemLog(session, $"live session failed: {reason}");
+        Transition(session, SessionState.Failed, reason);
+        session.Process?.KillTree();
+    }
+
+    /// <summary>Stdout carries the protocol (the adapter turns it into readable log lines); stderr is logged as is.</summary>
+    private async Task PumpLiveAsync(Session session, ChannelReader<RawOutputLine> reader)
+    {
+        await foreach (var raw in reader.ReadAllAsync())
+        {
+            if (raw.Stream == LogStream.Stderr)
+            {
+                AppendAgentLog(session, AnsiSanitizer.Sanitize(raw.Text), LogStream.Stderr);
+                continue;
+            }
+            try { session.Live!.OnStdout(raw.Text); }
+            catch (Exception ex) { logger.LogWarning(ex, "Live protocol failed on a line from {SessionId}", session.Id); }
+        }
+    }
+
+    private void AppendAgentLog(Session session, string text, LogStream stream = LogStream.Stdout)
+    {
+        if (text.Length == 0) return;
+        session.Tokens.Observe(text);
+        var entry = logStore.Append(session.Id, stream, text);
+        if (!text.StartsWith("[jaravi]", StringComparison.Ordinal))
+            session.LastOutputAt = DateTimeOffset.UtcNow;
+        eventBus.Publish(new LogBatchEmitted { SessionId = session.Id, Entries = [entry] });
     }
 
     private Session GetSession(string sessionId) =>
@@ -587,6 +781,8 @@ public sealed class SessionManager(
                 DurationSeconds = session.StartedAt is null ? null : Math.Round((end - start).TotalSeconds, 1),
                 TokenCount = tokens,
                 TokenEstimated = estimated,
+                Live = session.Request.Live,
+                AgentSessionId = session.AgentSessionId,
             };
         }
     }
@@ -619,6 +815,12 @@ public sealed class SessionManager(
 
         /// <summary>While Queued by a claim conflict: the holder session.</summary>
         public string? QueuedBehind { get; set; }
+
+        /// <summary>Protocol adapter of a live session; null for one-shot sessions.</summary>
+        public LiveProtocol? Live { get; set; }
+        public string? AgentSessionId { get; set; }
+        public string? McpConfigFile { get; set; }
+        public DateTimeOffset? IdleSince { get; set; }
 
         public SessionState SnapshotState() { lock (Gate) return State; }
     }
