@@ -72,6 +72,20 @@ internal sealed class FakeSessions : ISessionManager
 
     public Task<SessionSnapshot> KillAsync(string sessionId, string? reason = null, CancellationToken ct = default) =>
         Task.FromResult(GetSnapshot(sessionId));
+
+    public Task<TurnDelivery> DeliverTurnAsync(string sessionId, string text, bool urgent = false, Action? onSent = null, CancellationToken ct = default) =>
+        Task.FromResult(TurnDelivery.NotLive);
+}
+
+/// <summary>A caller working in a fixed directory, as the hub sees an agent through its relay.</summary>
+internal sealed class FakeCaller(string cwd, string? root = null) : Jaravi.McpServer.Hub.ICallerContext
+{
+    public Jaravi.Core.Teams.TeamCaller Caller => new(null, cwd);
+    public string DefaultWorkdir => cwd;
+    public string? CallerRoot => root;
+    public Jaravi.Core.Teams.DeliveryTier JoinDelivery => Jaravi.Core.Teams.DeliveryTier.Pull;
+    public void BindMember(string token) { }
+    public string? ClientName => "test-client";
 }
 
 internal sealed class FakeLogStore : ILogStore

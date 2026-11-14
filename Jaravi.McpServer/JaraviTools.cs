@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Jaravi.Core;
 using Jaravi.Core.Abstractions;
 using Jaravi.Core.Models;
+using Jaravi.McpServer.Hub;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -12,7 +13,7 @@ namespace Jaravi.McpServer;
 /// payload — the raw firehose only ever flows to the Dashboard WebSocket.
 /// </summary>
 [McpServerToolType]
-public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registry, ILogStore logStore)
+public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registry, ILogStore logStore, ICallerContext caller)
 {
     [McpServerTool(Name = "list_agents", ReadOnly = true, Idempotent = true, OpenWorld = false),
      Description(
@@ -59,7 +60,7 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
     {
         var request = BuildRequest(ResolveProfileId(agent, profile), ResolveWorkdir(workdir),
             task, brief, unattended, timeoutSec, env, labels,
-            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
+            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict) with { CallerRoot = caller.CallerRoot };
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
 
         return new
@@ -101,7 +102,7 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
     {
         var request = BuildRequest(ResolveProfileId(agent, profile), ResolveWorkdir(workdir),
             task, brief, unattended, timeoutSec, env, labels,
-            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict);
+            inputFromSessionId, inputKind, inputTailLines, inputGrep, claims, onConflict) with { CallerRoot = caller.CallerRoot };
 
         var snapshot = await Guard(() => sessions.SpawnAsync(request, ct));
         progress?.Report(new ProgressNotificationValue
@@ -228,8 +229,8 @@ public sealed class JaraviTools(ISessionManager sessions, IAgentRegistry registr
     /// Nothing is loosened by this: the Scope Gate validates the result exactly
     /// as before, and rejects it if it falls outside the allowed roots.
     /// </summary>
-    private static string ResolveWorkdir(string? workdir) =>
-        string.IsNullOrWhiteSpace(workdir) ? Environment.CurrentDirectory : workdir.Trim();
+    private string ResolveWorkdir(string? workdir) =>
+        string.IsNullOrWhiteSpace(workdir) ? caller.DefaultWorkdir : workdir.Trim();
 
     private static SpawnRequest BuildRequest(
         string profile, string workdir, string? task, TaskBrief? brief, bool unattended, int timeoutSec,

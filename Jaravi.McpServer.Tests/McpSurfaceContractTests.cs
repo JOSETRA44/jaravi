@@ -28,6 +28,7 @@ public class McpSurfaceContractTests
         var services = new ServiceCollection();
         services.AddMcpServer(options => options.ServerInstructions = JaraviInstructions.Text)
             .WithTools<JaraviTools>()
+            .WithTools<TeamTools>()
             .WithResources<JaraviResources>()
             .WithPromptsFromAssembly(typeof(JaraviPrompts).Assembly);
         return services.BuildServiceProvider();
@@ -80,15 +81,30 @@ public class McpSurfaceContractTests
     // ── Tools ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void All_eleven_tools_are_published()
+    public void Exactly_the_session_and_team_tools_are_published()
     {
-        var names = Primitives<McpServerTool>().Select(t => t.ProtocolTool.Name).OrderBy(n => n).ToArray();
+        // Every tool costs context in every connected client, so the surface is
+        // pinned: adding one must be a decision, not a side effect. The team set was
+        // deliberately consolidated (roster + board + decisions live in team_status).
+        var names = Primitives<McpServerTool>().Select(t => t.ProtocolTool.Name).OrderBy(n => n, StringComparer.Ordinal).ToArray();
 
         Assert.Equal(
         [
-            "await_session", "get_status", "get_summary", "kill_agent", "list_agents", "list_sessions",
-            "read_output", "reload_agents", "run_agent", "send_input", "spawn_agent",
+            "await_session", "decision_record", "get_status", "get_summary", "kill_agent", "lease_paths",
+            "list_agents", "list_sessions", "read_output", "reload_agents", "run_agent", "send_input",
+            "spawn_agent", "task_claim", "task_complete", "task_create", "task_update",
+            "team_ask", "team_create", "team_inbox", "team_join", "team_send", "team_spawn", "team_status",
         ], names);
+    }
+
+    [Fact]
+    public void Team_tools_tell_the_caller_that_stored_is_not_delivered()
+    {
+        // The property the whole team layer is built on: a sender must be able to
+        // tell "in their context" from "sitting in a database".
+        var send = Primitives<McpServerTool>().Single(t => t.ProtocolTool.Name == "team_send").ProtocolTool.Description!;
+        Assert.Contains("receipt", send);
+        Assert.Contains("only stored", send);
     }
 
     [Fact]

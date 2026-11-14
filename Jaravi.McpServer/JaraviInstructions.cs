@@ -60,10 +60,25 @@ internal static class JaraviInstructions
 
             run_agent(agent: "codex", task: "audit src/api and list security issues")
 
-        `agent` is the profile id from `list_agents`. `workdir` defaults to this
-        server's directory — pass it explicitly only to target a different one; it
+        `agent` is the profile id from `list_agents`. `workdir` defaults to your own
+        current directory — pass it explicitly only to target a different one; it
         is validated against the allowed roots either way. `profile` is accepted as
         an alias for `agent`, so older call sites keep working.
+
+        ## Teams: agents that work WITH each other, not just for you
+
+        Members from any provider know who leads and who their teammates are, message
+        each other directly, share a task board (dependencies, path leases), inherit
+        recorded decisions, and review each other's work. Don't relay between them.
+
+            team_create(name: "parser", as: "lead")
+            team_spawn(agent: "gemini", name: "impl", role: "implementer", task: "...")
+            task_create(title: "...", owner: "impl", verifier: "role:reviewer")
+            team_status()   # bounded digest, not transcripts
+
+        Receipts say delivered (in their context), queued for their next turn, or only
+        stored — different facts. Outside agents join with team_join or
+        `jaravi team launch <team> --as <name> -- claude`.
 
         If a call comes back with a stated cause — an unknown profile, a workdir
         outside the allowed roots, a missing agent id — the message says what to

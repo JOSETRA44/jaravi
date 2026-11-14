@@ -123,15 +123,17 @@ public class ToolCallShapeTests
     }
 
     [Fact]
-    public void An_omitted_workdir_becomes_the_servers_own_directory()
+    public void An_omitted_workdir_becomes_the_callers_own_directory_not_the_servers()
     {
-        // Which is what the CLI resolves to, and is still Scope-Gated downstream.
-        var resolve = typeof(JaraviTools).GetMethod("ResolveWorkdir",
-            BindingFlags.NonPublic | BindingFlags.Static)!;
+        // Behind the hub, the server process runs from the config dir and serves every
+        // project; "its" directory means nothing. The caller's is what the CLI and the
+        // pre-hub server both resolved to, and it is still Scope-Gated downstream.
+        var tools = new JaraviTools(new FakeSessions(), new FakeRegistry(), new FakeLogStore(), new FakeCaller(@"C:\projects\app"));
+        var resolve = typeof(JaraviTools).GetMethod("ResolveWorkdir", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-        Assert.Equal(Environment.CurrentDirectory, resolve.Invoke(null, [null]));
-        Assert.Equal(Environment.CurrentDirectory, resolve.Invoke(null, ["   "]));
-        Assert.Equal("C:\\explicit", resolve.Invoke(null, ["C:\\explicit"]));
+        Assert.Equal(@"C:\projects\app", resolve.Invoke(tools, [null]));
+        Assert.Equal(@"C:\projects\app", resolve.Invoke(tools, ["   "]));
+        Assert.Equal("C:\\explicit", resolve.Invoke(tools, ["C:\\explicit"]));
     }
 
     [Fact]
