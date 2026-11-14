@@ -10,14 +10,23 @@ public sealed class ScopeGate(EngineOptions options)
 {
     /// <returns>The fully-qualified, validated workdir.</returns>
     /// <exception cref="ScopeGateException"/>
-    public string ValidateWorkdir(string workdir)
+    /// <param name="callerRoot">
+    /// The directory the calling agent itself runs in, when the hub serves several
+    /// projects. Before the hub every MCP client got its own server started in its
+    /// project, and that directory was the default allowed root; one shared hub
+    /// must keep exactly that grant per caller, not widen it to every project.
+    /// </param>
+    public string ValidateWorkdir(string workdir, string? callerRoot = null)
     {
         if (string.IsNullOrWhiteSpace(workdir))
             throw new ScopeGateException(workdir);
 
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workdir));
 
-        foreach (var root in options.AllowedRoots)
+        IEnumerable<string> roots = string.IsNullOrWhiteSpace(callerRoot)
+            ? options.AllowedRoots
+            : options.AllowedRoots.Append(callerRoot);
+        foreach (var root in roots)
         {
             var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
             if (full.Equals(fullRoot, StringComparison.OrdinalIgnoreCase) ||

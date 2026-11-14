@@ -55,7 +55,7 @@ public sealed class ClaimRegistry
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(full));
     }
 
-    private static bool Overlaps(string a, string b) =>
+    internal static bool Overlaps(string a, string b) =>
         a.Equals(b, StringComparison.OrdinalIgnoreCase) ||
         a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
         b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
