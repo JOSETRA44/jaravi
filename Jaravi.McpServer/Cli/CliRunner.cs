@@ -38,7 +38,7 @@ public static class CliRunner
 
     private static readonly string[] Verbs =
         ["agents", "run", "spawn", "sessions", "status", "logs", "await", "kill", "doctor",
-         "install", "uninstall"];
+         "install", "uninstall", "team", "hook"];
 
     /// <summary>
     /// True when argv carries a command, so the caller must not boot a web server.
@@ -103,6 +103,14 @@ public static class CliRunner
         // healthy installation in order to run — that would make the tools that
         // exist to fix a broken setup unusable on exactly a broken setup.
         if (args.Verb == "doctor") return await DoctorAsync(args, ct);
+
+        // Team verbs and hooks always talk to the hub: a team is shared state by
+        // definition, so there is no private-engine fallback for them.
+        if (args.Verb == "team") return await TeamCommand.RunAsync(args.RawArgs, ct);
+        if (args.Verb == "hook")
+            return args.Positional(0) == "claude"
+                ? await ClaudeHooks.RunAsync(args.Positional(1) ?? "", ct)
+                : 0; // unknown client: a hook must never fail the agent
         if (args.Verb == "install") return InstallCommand.Run(args, removing: false);
         if (args.Verb == "uninstall") return InstallCommand.Run(args, removing: true);
 

@@ -65,6 +65,15 @@ public static class CommandLine
     public static bool ModeWasInferred(string[] args) =>
         !args.Contains("--stdio") && !args.Contains("--http");
 
+    /// <summary>
+    /// Stdio clients relay to the shared hub unless told not to: --local on the
+    /// command line, or JARAVI_HUB=off (tests, air-gapped setups, debugging the
+    /// engine in-process).
+    /// </summary>
+    public static bool HubPreferred(string[] args) =>
+        !args.Contains("--local")
+        && Environment.GetEnvironmentVariable("JARAVI_HUB")?.Trim().ToLowerInvariant() is not ("off" or "0" or "false" or "no");
+
     public static string Version =>
         Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 
@@ -120,6 +129,23 @@ public static class CommandLine
           --claims a;b                Paths this run owns; a conflicting spawn is refused.
           --on-conflict reject|queue  Refuse, or park until the conflict clears.
 
+        TEAMS  (agents from any provider working together, through the hub)
+          jaravi-mcp team create <name> --as <you> [--objective "…"] [--workdir DIR]
+          jaravi-mcp team launch <team> --as <name> [--role R] -- claude [args…]
+              Start an agent in THIS terminal, fully interactive, as a team member.
+              Claude Code gets hooks for that session only: teammates' messages
+              reach it at its next step and wake it when idle. Other agents act as
+              the member through their Jaravi MCP connection.
+          jaravi-mcp team join <team> --as <name>   Prints a member token to export.
+          jaravi-mcp team status [team] | list | inbox [--wait N] | leave
+          jaravi-mcp team send <to> <message…> [--urgent] [--expects-reply]
+              <to> is a member name, role:<role>, lead or all.
+
+        THE HUB  (one per user; starts by itself)
+          MCP clients' jaravi-mcp relays to a per-user hub that owns every session
+          and team, so all agents share one world and survive a client restart.
+          jaravi-mcp hub status | start | stop     JARAVI_HUB=off or --local: private engine.
+
         COMMON OPTIONS
           --json          Machine-readable output instead of text.
           --quiet         Suppress the status header.
@@ -162,6 +188,9 @@ public static class CommandLine
           list_agents, reload_agents, spawn_agent, run_agent, await_session,
           get_summary, get_status, list_sessions, read_output, send_input,
           kill_agent
+          team_create, team_join, team_spawn, team_status, team_send, team_ask,
+          team_inbox, task_create, task_claim, task_update, task_complete,
+          decision_record, lease_paths
 
         """;
 }

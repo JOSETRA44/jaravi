@@ -19,10 +19,15 @@ public sealed class CliArgs
     {
         "json", "attended", "quiet", "no-attach", "stdio", "http",
         "dry-run", "no-instructions", "no-shim", "refresh-agents",
+        "urgent", "expects-reply", "no-hooks", "local",
     };
+
+    /// <summary>The argv this was parsed from — for verbs that pass part of it through verbatim.</summary>
+    public string[] RawArgs { get; }
 
     public CliArgs(IReadOnlyList<string> args)
     {
+        RawArgs = [.. args];
         for (var i = 0; i < args.Count; i++)
         {
             var token = args[i];

@@ -39,6 +39,15 @@ public static class JaraviClientFactory
             return new ClientResolution(probed, declared);
         }
 
+        // The hub first: it is where every agent's sessions and teams live. It is
+        // not started for a CLI call — a private engine still serves 'run' when no
+        // hub is up — but when it is up, nothing else is the shared world.
+        if (await Hub.HubLauncher.FindAsync(ct) is { } hub)
+        {
+            var info = new InstanceInfo(hub.Pid, hub.Url, "(hub — all projects)", hub.StartedAt);
+            return new ClientResolution(new RestJaraviClient(Hub.HubLauncher.CreateClient(hub), info), info);
+        }
+
         foreach (var instance in RankInstances(workdir))
         {
             var client = await TryAttachAsync(instance, ct);

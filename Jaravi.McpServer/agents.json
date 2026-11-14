@@ -2,6 +2,9 @@
   // Declarative agent registry — adding a new external agent CLI is an entry
   // here, never a code change.
   //   Spawn-time placeholders: {task}, {workdir}.
+  //   "live": how to keep the agent in a session as a team member, receiving
+  //   messages as new turns (see jaravi-docs/Matriz de Runtimes.md). Live args
+  //   also take {mcpConfigFile}: a temp file with the injected team MCP server.
   //   Load-time path placeholders, so this file stays portable between machines:
   //   {npmRoot} (global npm module dir), {home}, {appData}, {localAppData}.
   //   Never hardcode an absolute user path here: it makes every profile dead on
@@ -32,7 +35,8 @@
       "envAllowlist": ["ANTHROPIC_MODEL"],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "claudeStream", "args": ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--mcp-config", "{mcpConfigFile}"], "unattendedArgs": ["--dangerously-skip-permissions"] }
     },
     {
       "id": "copilot",
@@ -44,7 +48,8 @@
       "envAllowlist": [],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "acp", "args": ["{npmRoot}\\@github\\copilot\\npm-loader.js", "--acp", "--additional-mcp-config", "@{mcpConfigFile}"], "unattendedArgs": ["--allow-all-tools"], "mcpViaConfigFile": true }
     },
     {
       "id": "antigravity",
@@ -56,7 +61,8 @@
       "envAllowlist": [],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 600
+      "idleTimeoutSeconds": 600,
+      "live": { "protocol": "acp", "args": ["acp"] }
     },
     {
       "id": "codex",
@@ -68,7 +74,8 @@
       "envAllowlist": [],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "codexAppServer", "args": ["{npmRoot}\\@openai\\codex\\bin\\codex.js", "app-server"] }
     },
     {
       "id": "opencode",
@@ -80,7 +87,8 @@
       "envAllowlist": ["OPENCODE_MODEL"],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "acp", "args": ["acp"] }
     },
     {
       "id": "gemini",
@@ -92,7 +100,8 @@
       "envAllowlist": ["GEMINI_MODEL"],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "acp", "args": ["{npmRoot}\\@google\\gemini-cli\\bundle\\gemini.js", "--acp"], "unattendedArgs": ["--approval-mode", "yolo"] }
     },
     {
       "id": "qwen",
@@ -104,7 +113,8 @@
       "envAllowlist": ["OPENAI_MODEL"],
       "closeStdin": true,
       "io": "pipe",
-      "idleTimeoutSeconds": 300
+      "idleTimeoutSeconds": 300,
+      "live": { "protocol": "acp", "args": ["{npmRoot}\\@qwen-code\\qwen-code\\cli-entry.js", "--acp"], "unattendedArgs": ["--approval-mode", "yolo"] }
     },
     {
       "id": "deepcode",
